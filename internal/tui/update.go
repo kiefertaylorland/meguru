@@ -31,6 +31,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.revealed = false
 		m.submitting = false
 		m.noneDue = msg.card == nil
+		if m.noneDue {
+			return m, tea.Quit
+		}
 		return m, nil
 
 	case errMsg:
