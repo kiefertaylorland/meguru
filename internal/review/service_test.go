@@ -102,6 +102,21 @@ func TestRate_ReturnsErrorOnClosedDB(t *testing.T) {
 	require.Error(t, err)
 }
 
+// scheduled_days is the number of days between now and the newly computed
+// due_at, per scheduler.NextDue's fixed intervals.
+func TestRate_ComputesScheduledDaysFromNextDue(t *testing.T) {
+	db := openTestDB(t)
+	cardID := seedOneCard(t, db)
+	svc := NewService(db)
+	now := time.Now()
+
+	require.NoError(t, svc.Rate(context.Background(), cardID, scheduler.Easy, now))
+
+	var scheduledDays float64
+	require.NoError(t, db.QueryRow(`SELECT scheduled_days FROM review_log WHERE card_id = ?`, cardID).Scan(&scheduledDays))
+	require.InDelta(t, 7.0, scheduledDays, 0.01, "Easy schedules 7 days out")
+}
+
 // elapsed_days is only populated once a card has a prior last_review_at; the
 // first-ever rating leaves it NULL.
 func TestRate_FirstRatingLeavesElapsedDaysNull(t *testing.T) {
