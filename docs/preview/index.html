@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Meguru Preview</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b1220;
+        --panel: #111827;
+        --border: #334155;
+        --text: #e5e7eb;
+        --muted: #94a3b8;
+        --accent: #22c55e;
+        --accent-soft: rgba(34, 197, 94, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 16px;
+        background: radial-gradient(circle at top, #162033 0%, var(--bg) 55%);
+        color: var(--text);
+        font: 16px/1.5 ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas,
+          Liberation Mono, monospace;
+      }
+
+      main {
+        width: min(100%, 900px);
+      }
+
+      .terminal {
+        background: rgba(15, 23, 42, 0.94);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+      }
+
+      .terminal__bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        background: rgba(15, 23, 42, 0.98);
+      }
+
+      .dots {
+        display: flex;
+        gap: 8px;
+      }
+
+      .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+        background: #475569;
+      }
+
+      .dot:first-child {
+        background: #ef4444;
+      }
+
+      .dot:nth-child(2) {
+        background: #f59e0b;
+      }
+
+      .dot:nth-child(3) {
+        background: #22c55e;
+      }
+
+      .title {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .terminal__body {
+        padding: 24px;
+      }
+
+      .prompt,
+      .line {
+        white-space: pre-wrap;
+      }
+
+      .prompt {
+        color: var(--accent);
+      }
+
+      .card {
+        margin: 18px 0;
+        padding: 20px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: rgba(15, 23, 42, 0.76);
+      }
+
+      .expression {
+        font-size: clamp(3rem, 10vw, 5rem);
+        line-height: 1.1;
+      }
+
+      .details {
+        margin-top: 18px;
+        color: var(--muted);
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 24px;
+      }
+
+      button {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.96);
+        color: var(--text);
+        padding: 14px 12px;
+        font: inherit;
+        cursor: pointer;
+        transition: transform 120ms ease, border-color 120ms ease,
+          background 120ms ease;
+      }
+
+      button:hover,
+      button:focus-visible {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+        outline: none;
+        transform: translateY(-1px);
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
+        transform: none;
+      }
+
+      .footer {
+        margin-top: 18px;
+        color: var(--muted);
+      }
+
+      .history {
+        margin-top: 18px;
+        padding-top: 18px;
+        border-top: 1px solid var(--border);
+      }
+
+      .history p {
+        margin: 0 0 8px;
+      }
+
+      .accent {
+        color: var(--accent);
+      }
+
+      @media (max-width: 720px) {
+        .controls {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="terminal" aria-label="Meguru browser preview">
+        <div class="terminal__bar">
+          <div class="dots" aria-hidden="true">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+          </div>
+          <div class="title">meguru preview</div>
+        </div>
+        <div class="terminal__body">
+          <div class="prompt">$ meguru review</div>
+          <p class="line">Try a small, self-contained review session in the browser.</p>
+          <p class="line" id="status"></p>
+
+          <article class="card" aria-live="polite">
+            <div class="expression" id="expression"></div>
+            <div class="details hidden" id="details"></div>
+          </article>
+
+          <div class="controls">
+            <button id="reveal">Reveal <span class="accent">Space</span></button>
+            <button id="again" disabled>1 Again</button>
+            <button id="hard" disabled>2 Hard</button>
+            <button id="good" disabled>3 Good</button>
+            <button id="easy" disabled>4 Easy</button>
+            <button id="restart">Restart <span class="accent">R</span></button>
+          </div>
+
+          <div class="footer" id="hint"></div>
+          <div class="history" id="history" aria-live="polite"></div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const seedCards = [
+        { expression: "あ", reading: "a", meaning: "a" },
+        { expression: "い", reading: "i", meaning: "i" },
+        { expression: "う", reading: "u", meaning: "u" },
+        { expression: "え", reading: "e", meaning: "e" },
+        { expression: "お", reading: "o", meaning: "o" }
+      ];
+
+      const ratings = [
+        { id: "again", label: "Again" },
+        { id: "hard", label: "Hard" },
+        { id: "good", label: "Good" },
+        { id: "easy", label: "Easy" }
+      ];
+
+      const state = {
+        index: 0,
+        revealed: false,
+        history: []
+      };
+
+      const status = document.getElementById("status");
+      const expression = document.getElementById("expression");
+      const details = document.getElementById("details");
+      const hint = document.getElementById("hint");
+      const history = document.getElementById("history");
+      const reveal = document.getElementById("reveal");
+      const restart = document.getElementById("restart");
+
+      function currentCard() {
+        return seedCards[state.index] || null;
+      }
+
+      function setRatingButtons(enabled) {
+        ratings.forEach(({ id }) => {
+          document.getElementById(id).disabled = !enabled;
+        });
+      }
+
+      function renderHistory() {
+        if (!state.history.length) {
+          history.innerHTML = "";
+          return;
+        }
+
+        history.innerHTML =
+          "<p>Session log:</p>" +
+          state.history
+            .map(
+              (entry) =>
+                `<p>> recorded ${entry.rating.toLowerCase()} for ${entry.expression}</p>`
+            )
+            .join("");
+      }
+
+      function render() {
+        const card = currentCard();
+        if (!card) {
+          status.textContent = "Nothing due right now.";
+          expression.textContent = "Session complete";
+          details.textContent = "Restart to review the preview deck again.";
+          details.classList.remove("hidden");
+          hint.textContent = "This page is limited to the Meguru demo only.";
+          reveal.disabled = true;
+          setRatingButtons(false);
+          renderHistory();
+          return;
+        }
+
+        status.textContent = `Card ${state.index + 1} of ${seedCards.length}`;
+        expression.textContent = card.expression;
+        reveal.disabled = state.revealed;
+        setRatingButtons(state.revealed);
+
+        if (state.revealed) {
+          details.textContent = `${card.reading} — ${card.meaning}`;
+          details.classList.remove("hidden");
+          hint.textContent = "Rate with 1-4 or the buttons below.";
+        } else {
+          details.classList.add("hidden");
+          details.textContent = "";
+          hint.textContent = "Press Space or Enter to reveal the card.";
+        }
+
+        renderHistory();
+      }
+
+      function revealCard() {
+        if (!currentCard()) {
+          return;
+        }
+        state.revealed = true;
+        render();
+      }
+
+      function rateCard(label) {
+        const card = currentCard();
+        if (!card || !state.revealed) {
+          return;
+        }
+
+        state.history.push({ expression: card.expression, rating: label });
+        state.index += 1;
+        state.revealed = false;
+        render();
+      }
+
+      function restartSession() {
+        state.index = 0;
+        state.revealed = false;
+        state.history = [];
+        render();
+      }
+
+      reveal.addEventListener("click", revealCard);
+      restart.addEventListener("click", restartSession);
+      ratings.forEach(({ id, label }) => {
+        document.getElementById(id).addEventListener("click", () => rateCard(label));
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if ((event.key === " " || event.key === "Enter") && !state.revealed) {
+          event.preventDefault();
+          revealCard();
+          return;
+        }
+
+        if (event.key.toLowerCase() === "r") {
+          restartSession();
+          return;
+        }
+
+        const rating = ratings[Number(event.key) - 1];
+        if (rating) {
+          rateCard(rating.label);
+        }
+      });
+
+      render();
+    </script>
+  </body>
+</html>
