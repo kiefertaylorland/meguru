@@ -31,6 +31,6 @@ jobs:
         run: go build -tags networkdenied ./tests/e2e/...
       - name: Run core loop with network access blocked
         run: |
-          sudo unshare --net --map-root-user \
-            env GOPATH="$(go env GOPATH)" GOCACHE="$(go env GOCACHE)" GOMODCACHE="$(go env GOMODCACHE)" PATH="$PATH" \
+          sudo unshare --net --setgid "$(id -g)" --setuid "$(id -u)" \
+            env HOME="$HOME" GOPATH="$(go env GOPATH)" GOCACHE="$(go env GOCACHE)" GOMODCACHE="$(go env GOMODCACHE)" PATH="$PATH" \
             go test -tags networkdenied ./tests/e2e/...
