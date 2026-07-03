@@ -81,11 +81,19 @@ func updateInPlace(ctx context.Context, db *sql.DB, deckID int64, content Conten
 		// this milestone's single fixed hiragana deck never introduces new
 		// notes via a content-version bump, so an unmatched expression is
 		// not handled here.
-		if _, err := tx.ExecContext(ctx,
+		res, err := tx.ExecContext(ctx,
 			`UPDATE notes SET fields = ?, updated_at = ?
 			 WHERE deck_id = ? AND json_extract(fields, '$.expression') = ?`,
-			string(fields), nowStr, deckID, note.Expression); err != nil {
+			string(fields), nowStr, deckID, note.Expression)
+		if err != nil {
 			return fmt.Errorf("update note %s: %w", note.Expression, err)
+		}
+		affected, err := res.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("update note %s: %w", note.Expression, err)
+		}
+		if affected != 1 {
+			return fmt.Errorf("update note %s: expected to update 1 row, updated %d", note.Expression, affected)
 		}
 	}
 
