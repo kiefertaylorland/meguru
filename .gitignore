@@ -1,0 +1,14 @@
+# Go
+/meguru
+*.exe
+*.test
+*.out
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local dev artifacts
+*.db
+*.db-wal
+*.db-shm
