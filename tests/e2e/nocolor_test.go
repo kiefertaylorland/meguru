@@ -5,6 +5,7 @@ import (
 	"io"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"testing"
 	"time"
 
@@ -18,6 +19,9 @@ var sgrColorEscape = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 // interactive TUI (not --plain) is used — interactive redraws are still
 // permitted, only color/style is suppressed (FR-011).
 func TestNoColor_SuppressesColorInInteractiveMode(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("pty not supported on Windows")
+	}
 	bin := buildBinary(t)
 	dataDir := t.TempDir()
 

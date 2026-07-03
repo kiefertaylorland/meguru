@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 )
@@ -31,6 +32,9 @@ func buildBinary(t *testing.T) string {
 			return
 		}
 		binPath = filepath.Join(binDir, "meguru-e2e")
+		if runtime.GOOS == "windows" {
+			binPath += ".exe"
+		}
 		args := []string{"build"}
 		if coverDir != "" {
 			args = append(args, "-cover")
