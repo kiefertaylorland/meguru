@@ -28,7 +28,7 @@ implementation decisions needed to turn that stack decision into a working walki
   group/other bits in the same sense). Decision: apply the same `os.Chmod`/`os.MkdirAll` calls
   unconditionally (Go's `os` package maps 0600/0700 to the nearest ACL-based equivalent — owner
   read/write, no other accounts), and let the E2E suite assert "no error, file created" on Windows
-  rather than asserting exact octal bits cross-platform. The *intent* (owner-only) is honored via
+  rather than asserting exact octal bits cross-platform. The _intent_ (owner-only) is honored via
   Go's stdlib mapping; a byte-for-byte permission assertion only runs on the two POSIX OSes.
 
 ## 3. Embedded deck format & seed/update-without-duplication strategy
@@ -90,7 +90,7 @@ implementation decisions needed to turn that stack decision into a working walki
   this test on the ubuntu leg of the matrix. The test itself makes no network calls by construction
   (no `internal/ai` import); the OS-level block is the actual proof requested by FR-017, not just a
   code review claim.
-- **Rationale**: FR-017 requires the test to *fail if network egress is attempted*, which means
+- **Rationale**: FR-017 requires the test to _fail if network egress is attempted_, which means
   the enforcement must happen outside the Go process (a mock or code-level check could pass
   vacuously). Restricting the sandboxed network-denied job to one OS (ubuntu) matches SC-005's
   wording ("on at least one supported operating system") and avoids fighting Windows/macOS
@@ -98,3 +98,25 @@ implementation decisions needed to turn that stack decision into a working walki
 - **Alternatives considered**: A `net.Dial` interceptor / monkey-patched transport inside the test
   binary — rejected, verifies the test author's assumptions rather than actual OS-level egress,
   weaker proof than what FR-017 asks for.
+
+## 7. Two additional small dependencies not itemized in TECH_STACK.md (CON-2 justification)
+
+- **Decision**: `github.com/mattn/go-isatty` (TTY detection for the `--plain`/non-TTY dispatch,
+  FR-010) and `github.com/charmbracelet/colorprofile` (forcing an ASCII/no-color output profile
+  for `NO_COLOR`, FR-011) are added as direct dependencies. Neither is named by that exact package
+  path in `docs/product/TECH_STACK.md`, so this section is the CON-2-required stated justification.
+- **Rationale**: FR-010 and FR-011 are binding functional requirements this milestone, and both
+  require a real mechanism — not just intent — to detect a non-interactive stdout and to strip
+  color codes from Bubble Tea's own render output. `go-isatty` is the same TTY-detection dependency
+  Cobra/Bubble Tea's own ecosystem already pulls in transitively (`github.com/mattn/go-isatty` is a
+  dependency of `github.com/mattn/go-runewidth`/terminal libraries already approved for this
+  milestone); `colorprofile` is `charmbracelet`'s own companion package to `bubbletea/v2`
+  (`charm.land/bubbletea/v2`'s `WithColorProfile` option is typed on `colorprofile.Profile`), so
+  it ships from the same vendor and major-version family already approved in TECH_STACK.md's TUI
+  stack, not an unrelated new supply-chain surface.
+- **Alternatives considered**: `golang.org/x/term.IsTerminal` in place of `go-isatty` — equally
+  valid and no more "approved" by name in TECH_STACK.md than `go-isatty`; not switched to it since
+  it would not change the justification need, only the package name. Hand-rolling ASCII-downgrade
+  color stripping instead of `colorprofile` — rejected, `tea.WithColorProfile` already types its
+  parameter on `colorprofile.Profile`, so avoiding the dependency would mean reimplementing logic
+  Bubble Tea already depends on and re-exports the type for.
