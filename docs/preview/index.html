@@ -342,12 +342,13 @@
         }
 
         if (event.key.toLowerCase() === "r") {
+          event.preventDefault();
           restartSession();
           return;
         }
 
         const rating = ratings[Number(event.key) - 1];
-        if (rating) {
+        if (rating && state.revealed) {
           rateCard(rating.label);
         }
       });
