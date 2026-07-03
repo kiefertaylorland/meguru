@@ -79,4 +79,5 @@ Meguru is an offline-first, terminal-native Japanese SRS written in Go (see `doc
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
+at specs/001-walking-skeleton/plan.md
 <!-- SPECKIT END -->
