@@ -11,11 +11,11 @@ Developers who study Japanese live in the terminal, but their study tools don't.
 
 ## Target Users
 
-| Persona | Description | Primary needs |
-|---|---|---|
-| **P1 — The author** (primary, dogfooding) | Solo dev, ~N5→N3, studies in short bursts between coding tasks | One-command daily review; zero friction; works offline |
-| **P2 — Terminal-native learner** | Developer studying Japanese; keyboard-only workflows | No accounts, no browser, scriptable, respects their terminal setup |
-| **P3 — Anki refugee** | Wants Japanese-specific structure without curating decks/plugins | Opinionated built-in decks; sane defaults; data import/export |
+| Persona                                   | Description                                                      | Primary needs                                                      |
+| ----------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------ |
+| **P1 — The author** (primary, dogfooding) | Solo dev, ~N5→N3, studies in short bursts between coding tasks   | One-command daily review; zero friction; works offline             |
+| **P2 — Terminal-native learner**          | Developer studying Japanese; keyboard-only workflows             | No accounts, no browser, scriptable, respects their terminal setup |
+| **P3 — Anki refugee**                     | Wants Japanese-specific structure without curating decks/plugins | Opinionated built-in decks; sane defaults; data import/export      |
 
 ## Core User Stories — Offline Mode (MVP unless tagged)
 
@@ -34,7 +34,7 @@ Developers who study Japanese live in the terminal, but their study tools don't.
 ## Stretch User Stories — AI-Enhanced Mode (post-MVP, opt-in, user-supplied provider)
 
 - **AI-1:** As a learner stuck on a leech card, I want freshly generated example sentences at my level, so that I see the word in new contexts instead of memorizing one card.
-- **AI-2:** As a learner, I want an explanation of *why* my answer was wrong (conjugation, politeness register, wrong reading), so that I fix the root cause, not the symptom.
+- **AI-2:** As a learner, I want an explanation of _why_ my answer was wrong (conjugation, politeness register, wrong reading), so that I fix the root cause, not the symptom.
 - **AI-3:** As a learner, I want short conversational practice scenarios (e.g., ordering food) constrained to vocabulary I've learned, so that I apply cards in context.
 - **AI-4:** As a learner, I want a personalized mnemonic for a kanji I keep failing, so that it finally sticks.
 - **AI-5:** As a deck builder, I want batch-generated cloze sentences from my vocab (with preview before merge), so that my sentence deck grows from words I actually know.
@@ -43,15 +43,15 @@ Every AI story is governed by the data-flow inventory and consent rules in [CONS
 
 ## Feature Scope
 
-| MVP (v0.1) | Post-MVP Wave 1 (v0.2) | Post-MVP Wave 2 (v0.3+) |
-|---|---|---|
-| Hiragana + katakana decks with guided intro | Keigo module (US-6) | AI provider abstraction + consent flow |
-| JLPT N5 kanji + N5 vocab built-in decks | Sentence/cloze deck type | AI-2 error explanations, then AI-1 examples |
-| FSRS engine + review/learn TUI flows | N4–N3 content | AI-3 conversation, AI-4/5 |
-| Romaji→kana answer input | Review heatmap + retention analytics | FSRS parameter optimization from own `review_log` |
-| Dashboard + basic stats | Anki `.apkg` import | Custom deck authoring TUI |
-| Deck/progress import-export (JSON/CSV) | Leech detection | |
-| Config + cross-platform signed binaries | | |
+| MVP (v0.1)                                  | Post-MVP Wave 1 (v0.2)               | Post-MVP Wave 2 (v0.3+)                           |
+| ------------------------------------------- | ------------------------------------ | ------------------------------------------------- |
+| Hiragana + katakana decks with guided intro | Keigo module (US-6)                  | AI provider abstraction + consent flow            |
+| JLPT N5 kanji + N5 vocab built-in decks     | Sentence/cloze deck type             | AI-2 error explanations, then AI-1 examples       |
+| FSRS engine + review/learn TUI flows        | N4–N3 content                        | AI-3 conversation, AI-4/5                         |
+| Romaji→kana answer input                    | Review heatmap + retention analytics | FSRS parameter optimization from own `review_log` |
+| Dashboard + basic stats                     | Anki `.apkg` import                  | Custom deck authoring TUI                         |
+| Deck/progress import-export (JSON/CSV)      | Leech detection                      |                                                   |
+| Config + cross-platform signed binaries     |                                      |                                                   |
 
 ### Review Session Flow
 
@@ -99,7 +99,7 @@ flowchart TD
 
 ## Out of Scope (explicit)
 
-- Audio: listening drills, TTS, pitch-accent audio (revisit after v1.0; pitch-accent *data field* reserved in schema, no UI).
+- Audio: listening drills, TTS, pitch-accent audio (revisit after v1.0; pitch-accent _data field_ reserved in schema, no UI).
 - Handwriting/stroke-order input or rendering.
 - Mobile, web, or GUI companions; accounts, cloud sync, leaderboards, or any social features.
 - Grammar textbook/course authoring — Meguru drills, it doesn't teach grammar from scratch (docs link out to standard resources).

@@ -9,14 +9,14 @@ exit behavior — not a network API. This documents the M1 command surface.
 
 **Flags**:
 
-| Flag | Type | Default | Behavior |
-|---|---|---|---|
+| Flag      | Type | Default | Behavior                                                                                                 |
+| --------- | ---- | ------- | -------------------------------------------------------------------------------------------------------- |
 | `--plain` | bool | `false` | Force the linear, non-interactive renderer (FR-010). Also forced automatically when stdout is not a TTY. |
 
 **Environment**:
 
-| Var | Behavior |
-|---|---|
+| Var        | Behavior                                                                                                                                                                       |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `NO_COLOR` | Any non-empty value suppresses color/style escape codes regardless of `--plain` (FR-011). Interactive redraws still occur if `--plain` was not also given and stdout is a TTY. |
 
 **Startup sequence** (every invocation):
@@ -29,6 +29,7 @@ exit behavior — not a network API. This documents the M1 command surface.
 5. Query for the next due card.
 
 **Behavior — due card exists**:
+
 - Interactive mode: Bubble Tea program renders the card, accepts one keypress from a fixed set
   mapped to Again/Hard/Good/Easy, then loops to the next due card until none remain.
 - Plain mode: prints the card as plain text, reads one line of stdin as the rating (accepts the
@@ -39,12 +40,13 @@ exits 0. This is not an error condition.
 
 **Exit codes**:
 
-| Code | Meaning |
-|---|---|
-| `0` | Session completed (including "nothing due") |
-| `1` | Unrecoverable error (e.g. DB open failure, corrupt embedded deck) |
+| Code | Meaning                                                           |
+| ---- | ----------------------------------------------------------------- |
+| `0`  | Session completed (including "nothing due")                       |
+| `1`  | Unrecoverable error (e.g. DB open failure, corrupt embedded deck) |
 
 **Non-functional guarantees** (contract, not just implementation detail):
+
 - Zero network calls at any point during this command's execution (FR-009/P-1).
 - Interrupting the process (SIGKILL/crash) after a card is displayed but before a rating is
   submitted leaves no partial `review_log` row; the card remains due on next invocation (FR-015).

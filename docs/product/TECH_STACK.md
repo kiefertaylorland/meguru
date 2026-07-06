@@ -7,15 +7,15 @@
 
 **Decision: Go** (current stable release; pinned in `go.mod`).
 
-| Criterion | **Go** | Rust | TypeScript / Node | Python |
-|---|---|---|---|---|
-| TUI framework | Bubble Tea v2 (dominant Go TUI; 40k+ stars, v2 shipped Feb 2026) | Ratatui (mature, lower-level) | Ink (React-based) | Textual (richest widgets) |
-| Single static binary | ✅ trivial | ✅ | ⚠️ SEA/pkg — large, finicky | ❌ PyInstaller per-OS pain |
-| Cross-compile 6 targets from one machine | ✅ `GOOS`/`GOARCH` built in | ⚠️ possible, more setup | ⚠️ | ❌ |
-| SQLite without native deps | ✅ `modernc.org/sqlite` (pure Go, no CGo) | ✅ rusqlite (bundled) | ⚠️ native builds | ✅ stdlib |
-| CJK width handling in terminal | ✅ `go-runewidth`/`uniseg`, battle-tested | ✅ `unicode-width` | ⚠️ less proven | ✅ excellent |
-| Solo-dev velocity (SDET background) | High — small language, fast compile loop | Lower — ownership curve | Highest familiarity | High familiarity |
-| Cold start | <10 ms | <10 ms | ~100 ms+ | ~100 ms+ |
+| Criterion                                | **Go**                                                           | Rust                          | TypeScript / Node           | Python                     |
+| ---------------------------------------- | ---------------------------------------------------------------- | ----------------------------- | --------------------------- | -------------------------- |
+| TUI framework                            | Bubble Tea v2 (dominant Go TUI; 40k+ stars, v2 shipped Feb 2026) | Ratatui (mature, lower-level) | Ink (React-based)           | Textual (richest widgets)  |
+| Single static binary                     | ✅ trivial                                                       | ✅                            | ⚠️ SEA/pkg — large, finicky | ❌ PyInstaller per-OS pain |
+| Cross-compile 6 targets from one machine | ✅ `GOOS`/`GOARCH` built in                                      | ⚠️ possible, more setup       | ⚠️                          | ❌                         |
+| SQLite without native deps               | ✅ `modernc.org/sqlite` (pure Go, no CGo)                        | ✅ rusqlite (bundled)         | ⚠️ native builds            | ✅ stdlib                  |
+| CJK width handling in terminal           | ✅ `go-runewidth`/`uniseg`, battle-tested                        | ✅ `unicode-width`            | ⚠️ less proven              | ✅ excellent               |
+| Solo-dev velocity (SDET background)      | High — small language, fast compile loop                         | Lower — ownership curve       | Highest familiarity         | High familiarity           |
+| Cold start                               | <10 ms                                                           | <10 ms                        | ~100 ms+                    | ~100 ms+                   |
 
 **Why Go wins for Meguru:** distribution is the decisive constraint. "Download one binary, run `meguru`" must work identically on all three platforms with zero runtime — only Go and Rust deliver that, and pure-Go SQLite keeps cross-compilation to all six OS/arch targets a one-line CI matrix (Rust + bundled SQLite needs per-target toolchains). Between the two, Go's iteration speed fits a nights-and-weekends solo dev better, and Bubble Tea's Elm architecture (pure `update(msg, model)` state transitions) makes the UI unit-testable — a deliberate portfolio signal for an SDET.
 
@@ -166,22 +166,22 @@ erDiagram
 
 One `ai.Provider` abstraction; the core app never imports a vendor SDK. Adapters are thin and config-selected (`config.toml → [ai] provider = "..."`).
 
-| Adapter | Auth | Notes |
-|---|---|---|
-| `anthropic` | API key (OS keychain) | Direct Messages API |
-| `openai-compatible` | API key (OS keychain) | Covers OpenAI + any compatible endpoint (Groq, Mistral, LM Studio…) |
-| `ollama` | none | Local models; `http://localhost:11434` default |
-| `cli` | user's existing subscription | Shells out to an allowlisted CLI (e.g. `claude -p`) — argv-only exec, prompt via stdin ([CONSTITUTION SEC-11](CONSTITUTION.md)) |
+| Adapter             | Auth                         | Notes                                                                                                                           |
+| ------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `anthropic`         | API key (OS keychain)        | Direct Messages API                                                                                                             |
+| `openai-compatible` | API key (OS keychain)        | Covers OpenAI + any compatible endpoint (Groq, Mistral, LM Studio…)                                                             |
+| `ollama`            | none                         | Local models; `http://localhost:11434` default                                                                                  |
+| `cli`               | user's existing subscription | Shells out to an allowlisted CLI (e.g. `claude -p`) — argv-only exec, prompt via stdin ([CONSTITUTION SEC-11](CONSTITUTION.md)) |
 
 Provider contract (capabilities, not vendor calls):
 
-| Method | Purpose | Payload constraint |
-|---|---|---|
+| Method             | Purpose                            | Payload constraint          |
+| ------------------ | ---------------------------------- | --------------------------- |
 | `GenerateExamples` | fresh example sentences for a card | CONSTITUTION inventory AI-1 |
-| `ExplainError` | why the user's answer was wrong | AI-2 |
-| `Converse` | scenario-based conversation turn | AI-3 |
-| `Mnemonic` | personalized memory hook | AI-4 |
-| `AugmentDeck` | batch sentence/cloze generation | AI-5 |
+| `ExplainError`     | why the user's answer was wrong    | AI-2                        |
+| `Converse`         | scenario-based conversation turn   | AI-3                        |
+| `Mnemonic`         | personalized memory hook           | AI-4                        |
+| `AugmentDeck`      | batch sentence/cloze generation    | AI-5                        |
 
 **Design rules:** every call has a hard context timeout and is cancellable; failures degrade to offline behavior (features hide when unconfigured); responses are cached in `ai_cache`; accepted AI content is persisted into notes and thereafter **works fully offline** — AI enriches the deck, it never becomes a dependency.
 
@@ -211,16 +211,16 @@ flowchart LR
 
 ## 7. Testing
 
-| Layer | Tooling | Covers |
-|---|---|---|
-| Unit | stdlib `testing` + `testify/require` | pure `update()` state transitions, services |
-| Property-based | `pgregory.net/rapid` | scheduler invariants: due dates never regress, stability/difficulty stay in bounds, arbitrary rating sequences never panic |
-| Reference vectors | upstream FSRS test vectors | scheduler output parity with the canonical implementation |
-| TUI snapshot | `teatest` golden files | rendered frames incl. CJK width edge cases |
-| Integration | temp SQLite, real migrations | store layer, import/export round-trips |
-| AI adapters | mock `Provider` + `go-vcr` fixtures | contract tests; **prompt-injection fixture suite** (malicious deck content — CONSTITUTION SEC-7) |
-| E2E smoke | compiled binary under a PTY (`creack/pty`) | startup, one review, clean exit — per OS |
-| CI gates | GitHub Actions 3-OS matrix | `-race`, `golangci-lint`, `govulncheck`, `gitleaks`, ≥80% coverage on core packages, **network-denied run proving the offline core makes zero egress** (CONSTITUTION SEC-8) |
+| Layer             | Tooling                                    | Covers                                                                                                                                                                      |
+| ----------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unit              | stdlib `testing` + `testify/require`       | pure `update()` state transitions, services                                                                                                                                 |
+| Property-based    | `pgregory.net/rapid`                       | scheduler invariants: due dates never regress, stability/difficulty stay in bounds, arbitrary rating sequences never panic                                                  |
+| Reference vectors | upstream FSRS test vectors                 | scheduler output parity with the canonical implementation                                                                                                                   |
+| TUI snapshot      | `teatest` golden files                     | rendered frames incl. CJK width edge cases                                                                                                                                  |
+| Integration       | temp SQLite, real migrations               | store layer, import/export round-trips                                                                                                                                      |
+| AI adapters       | mock `Provider` + `go-vcr` fixtures        | contract tests; **prompt-injection fixture suite** (malicious deck content — CONSTITUTION SEC-7)                                                                            |
+| E2E smoke         | compiled binary under a PTY (`creack/pty`) | startup, one review, clean exit — per OS                                                                                                                                    |
+| CI gates          | GitHub Actions 3-OS matrix                 | `-race`, `golangci-lint`, `govulncheck`, `gitleaks`, ≥80% coverage on core packages, **network-denied run proving the offline core makes zero egress** (CONSTITUTION SEC-8) |
 
 ## References
 

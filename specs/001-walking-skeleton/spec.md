@@ -8,7 +8,7 @@
 
 **Input**: User description: "Walking skeleton for Meguru M1: a Bubble Tea v2 TUI + Cobra CLI + SQLite schema/migrations + an embedded hiragana deck that syncs on first run + a minimal `meguru review` loop using a naive interval-bump scheduler (explicitly NOT FSRS) that writes to `review_log` and updates `srs_state`. Requirements: a `--plain` fallback rendering mode and respect for `NO_COLOR`; DB files created with 0600 permissions and their directory with 0700; CI must run on 3 OSes (ubuntu/macos/windows) and include a network-denied test proving the core loop needs zero network access. Naive scheduler rule (placeholder until go-fsrs lands in M2): Again -> due now+1 minute, Hard -> due now+1 day, Good -> due now+3 days, Easy -> due now+7 days. Out of Scope: FSRS itself, katakana/kanji/vocab decks beyond the embedded hiragana deck, and the AI provider layer."
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - First run seeds a deck and shows a due card (Priority: P1)
 
@@ -132,7 +132,7 @@ only, with no other user or group access.
   an older schema? The app MUST bring it up to the current schema automatically on startup
   without data loss.
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -194,7 +194,7 @@ only, with no other user or group access.
 - Import/export of decks, statistics dashboards, and any account/sync/cloud feature — none of
   these exist at this stage.
 
-### Key Entities *(include if feature involves data)*
+### Key Entities _(include if feature involves data)_
 
 - **Deck**: A named collection of study content; for this feature, exactly one built-in deck
   (hiragana) exists, tagged with a content version so future content updates can be detected and
@@ -206,7 +206,7 @@ only, with no other user or group access.
 - **Review Record**: An permanent, append-only log entry of one review attempt — which card, the
   rating given, and when it happened — that is never edited or deleted by normal operation.
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 
