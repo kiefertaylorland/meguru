@@ -57,22 +57,22 @@ explicitly out of scope per spec.
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
-| Principle / Rule | Applies? | Assessment |
-|---|---|---|
-| P-1 Offline-First Is Inviolable | Yes | Entire feature is the core loop; FR-009/FR-017 + SEC-8 network-denied CI test enforce this directly. No `internal/ai` package touched. **PASS** |
-| P-2 Local-Only By Default | Yes | All data (deck, srs_state, review_log) lives in the local SQLite file only; no sync/export in scope. **PASS** |
-| P-3 User-Supplied AI Only | N/A | No AI touchpoint in this milestone. |
-| P-4 Data Minimization At The AI Boundary | N/A | No AI payloads exist yet. |
-| P-5 No Telemetry | Yes | No telemetry/analytics added. **PASS** |
-| SEC-6/SEC-7 (untrusted input, deck data-only) | Yes | Embedded deck is trusted, versioned, shipped-in-binary content — not an import path — but must still be treated as data, never executed. Card fields render as text only. **PASS** |
-| SEC-8 (network isolation, CI gate) | Yes | FR-016/FR-017/SC-005 require exactly this: 3-OS CI matrix + network-denied test. Must be implemented, not just claimed. **Gate carried into tasks.** |
-| SEC-10 (dependency hygiene) | Yes | New deps (Bubble Tea v2, Cobra, modernc.org/sqlite, adrg/xdg, go-runewidth/uniseg, testify, teatest) are all named in TECH_STACK.md already — not novel additions requiring separate justification. `go-fsrs` explicitly NOT added this milestone (CON-2). **PASS** |
-| SEC-12 (file perms, no telemetry) | Yes | FR-012/FR-013 (0600/0700, self-heal + warn) are first-class functional requirements this milestone, not deferred. **Gate carried into tasks.** |
-| CON-1 (load constitution + tech stack first) | Yes | Done — this plan is derived from both. |
-| CON-2 (no stray network calls / deps / weakened CI) | Yes | No dependency outside the TECH_STACK.md-approved set; no code outside a future `internal/ai` may dial out. |
-| CON-3 (no secrets/real user data in fixtures) | Yes | Hiragana deck content and test fixtures are synthetic/public linguistic data, not user data. |
+| Principle / Rule                                    | Applies? | Assessment                                                                                                                                                                                                                                                          |
+| --------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P-1 Offline-First Is Inviolable                     | Yes      | Entire feature is the core loop; FR-009/FR-017 + SEC-8 network-denied CI test enforce this directly. No `internal/ai` package touched. **PASS**                                                                                                                     |
+| P-2 Local-Only By Default                           | Yes      | All data (deck, srs_state, review_log) lives in the local SQLite file only; no sync/export in scope. **PASS**                                                                                                                                                       |
+| P-3 User-Supplied AI Only                           | N/A      | No AI touchpoint in this milestone.                                                                                                                                                                                                                                 |
+| P-4 Data Minimization At The AI Boundary            | N/A      | No AI payloads exist yet.                                                                                                                                                                                                                                           |
+| P-5 No Telemetry                                    | Yes      | No telemetry/analytics added. **PASS**                                                                                                                                                                                                                              |
+| SEC-6/SEC-7 (untrusted input, deck data-only)       | Yes      | Embedded deck is trusted, versioned, shipped-in-binary content — not an import path — but must still be treated as data, never executed. Card fields render as text only. **PASS**                                                                                  |
+| SEC-8 (network isolation, CI gate)                  | Yes      | FR-016/FR-017/SC-005 require exactly this: 3-OS CI matrix + network-denied test. Must be implemented, not just claimed. **Gate carried into tasks.**                                                                                                                |
+| SEC-10 (dependency hygiene)                         | Yes      | New deps (Bubble Tea v2, Cobra, modernc.org/sqlite, adrg/xdg, go-runewidth/uniseg, testify, teatest) are all named in TECH_STACK.md already — not novel additions requiring separate justification. `go-fsrs` explicitly NOT added this milestone (CON-2). **PASS** |
+| SEC-12 (file perms, no telemetry)                   | Yes      | FR-012/FR-013 (0600/0700, self-heal + warn) are first-class functional requirements this milestone, not deferred. **Gate carried into tasks.**                                                                                                                      |
+| CON-1 (load constitution + tech stack first)        | Yes      | Done — this plan is derived from both.                                                                                                                                                                                                                              |
+| CON-2 (no stray network calls / deps / weakened CI) | Yes      | No dependency outside the TECH_STACK.md-approved set; no code outside a future `internal/ai` may dial out.                                                                                                                                                          |
+| CON-3 (no secrets/real user data in fixtures)       | Yes      | Hiragana deck content and test fixtures are synthetic/public linguistic data, not user data.                                                                                                                                                                        |
 
 No violations requiring Complexity Tracking justification. Gate: **PASS**.
 
@@ -136,4 +136,4 @@ in M2 without touching `internal/review` or storage code.
 
 ## Complexity Tracking
 
-*No Constitution Check violations — table not needed.*
+_No Constitution Check violations — table not needed._

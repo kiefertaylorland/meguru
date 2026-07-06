@@ -24,14 +24,15 @@ func NextDue(rating Rating, now time.Time) time.Time
 
 **Fixed rule (FR-008 — explicitly temporary, must not be made more sophisticated)**:
 
-| Rating | Interval |
-|---|---|
-| Again | `now + 1 minute` |
-| Hard | `now + 1 day` |
-| Good | `now + 3 days` |
-| Easy | `now + 7 days` |
+| Rating | Interval         |
+| ------ | ---------------- |
+| Again  | `now + 1 minute` |
+| Hard   | `now + 1 day`    |
+| Good   | `now + 3 days`   |
+| Easy   | `now + 7 days`   |
 
 **Invariants** (property-tested per TECH_STACK.md §7 testing conventions):
+
 - `NextDue` never returns a time ≤ `now`.
 - `NextDue` is deterministic: same `(rating, now)` always yields the same result.
 - `NextDue` never panics for any of the four valid `Rating` values; an invalid `Rating` value is

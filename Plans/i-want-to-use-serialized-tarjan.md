@@ -5,6 +5,7 @@
 Four spec documents (BRD, PRD, CONSTITUTION, TECH_STACK) already exist for **Meguru**, an offline-first, terminal-native Japanese SRS written in Go. The goal now is to turn those docs into a working GitHub Spec Kit project and implement the first milestone end-to-end, following the project's own SDLC (spec → plan → tasks → implement → verify) rather than writing code ad hoc. The repo directory is currently named `meguro` and empty; per user decision it will be renamed to `meguru` to match the product name everywhere (binary, Go module, docs).
 
 Decisions locked in with the user:
+
 - **Name:** "Meguru" everywhere; directory renamed `meguro` → `meguru`.
 - **Module path:** `github.com/kiefertaylorland/meguru` (gh already authed as `kiefertaylorland`). No remote GitHub repo is created/pushed this session — local git only.
 - **Scope:** full spec-kit scaffold (constitution + first feature spec/plan/tasks) covering the whole product vision, but **code implementation limited to Milestone M1** ("walking skeleton") per BRD: TUI shell + DB migrations + embedded hiragana deck + minimal review loop + 3-OS CI including a network-denied test. FSRS engine, additional decks, AI layer are explicitly out of scope (M2+).
@@ -53,6 +54,7 @@ internal/textwidth/textwidth.go     -- sole wrapper of go-runewidth+uniseg; no d
 ```
 
 Key invariants to carry into implementation:
+
 - `migrate.go` uses SQLite's own `PRAGMA user_version` counter — simplest approach, no extra dependency, consistent with pure-Go/no-CGo constraint.
 - `scheduler.go`'s signature mirrors TECH_STACK §4's `(card state, rating, now) → (new state, due date)` so swapping in `go-fsrs` later is a drop-in replacement, not a rewrite.
 - `tui/update.go` has zero side effects (Elm architecture); DB writes happen via `tea.Cmd` closures calling `internal/review`, results delivered back as messages — this is what makes it unit-testable per TECH_STACK's stated portfolio goal.
