@@ -85,21 +85,22 @@ fields already cover kana, kanji, and vocab content uniformly (research.md).
 
 ```
 Seed(ctx, db, now)
-  for each Definition d in BuiltinDecks():
-    content := d.Content()                     // parse this deck's embedded JSON
-    seedDeck(ctx, db, d, content, now)
+  parsed := parse every Definition in BuiltinDecks() // fail before writing anything
+  begin one transaction for the full built-in set
+  for each parsed Definition/content:
+    seedDeck(ctx, tx, d, content, now)
       SELECT id, content_version FROM decks WHERE slug = d.Slug
-      case no row:            seedFresh(ctx, db, d, content, now)   // INSERT deck + all notes/cards/srs_state
-      case version increased: updateInPlace(ctx, db, deckID, content, now) // UPDATE notes.fields in place, bump content_version
+      case no row:            seedFresh(ctx, tx, d, content, now)   // INSERT deck + all notes/cards/srs_state
+      case version increased: updateInPlace(ctx, tx, deckID, content, now) // UPDATE notes.fields in place, bump content_version
       case version unchanged: no-op
+  commit transaction
 ```
 
-Each `Definition`'s pass runs in its own transaction (unchanged from M1's per-call
-`db.BeginTx`/`tx.Commit`/`defer tx.Rollback()` shape) — a failure seeding one deck rolls back only
-that deck's own partial writes and stops `Seed` immediately; it does not roll back or skip decks
-already committed in prior loop iterations, and it does not attempt decks not yet reached (FR-004's
-per-deck no-duplication guarantee, edge case: "what happens if any single deck's insert fails
-outright").
+`Seed` parses every built-in deck before opening the write transaction, so malformed embedded JSON
+cannot leave a partially seeded fresh profile. The write pass then runs in one transaction for the
+full built-in set: any failed insert/update rolls back all changes from that `Seed` call and returns
+the error immediately (FR-004's no-duplication guarantee, edge case: "what happens if any single
+deck's insert fails outright").
 
 ## Content-version update-in-place (generalized, per deck)
 

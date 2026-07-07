@@ -71,10 +71,10 @@ func Seed(ctx context.Context, db *sql.DB, now time.Time) error
   leaving every other built-in deck's `decks`/`notes`/`cards`/`srs_state`/`review_log` rows
   untouched (FR-005, SC-004) — this includes not re-touching `updated_at` on notes whose content
   did not change.
-- A failure partway through seeding one `Definition` (e.g., a bad `INSERT`) MUST roll back only
-  that deck's own partial transaction; it MUST NOT roll back decks already committed by prior
-  iterations of `Seed`'s loop, and `Seed` MUST return the error immediately without attempting
-  remaining decks (data-model.md's "Seed flow" section).
+- `Seed` MUST parse every built-in `Definition` before writing; if any embedded JSON fails to parse,
+  no `decks`/`notes`/`cards`/`srs_state` rows are written. A write failure partway through seeding
+  the built-in set (e.g., a bad `INSERT`) MUST roll back all changes from that `Seed` call and return
+  the error immediately (data-model.md's "Seed flow" section).
 - `Definition.Content()` MUST return an error (not panic, not silently return zero-value content)
   if its embedded JSON fails to parse — the error MUST name the failing deck's slug
   (`"parse embedded %s deck"`), matching M1's existing error-message contract for `Hiragana()`.
