@@ -90,7 +90,9 @@ func TestToHiragana_Sokuon(t *testing.T) {
 func TestToHiragana_NDisambiguation(t *testing.T) {
 	cases := map[string]string{
 		"annai":     "あんない", // doubled "n": ん + な-row, no special-casing needed
-		"kon'ya":    "こんや",  // apostrophe forces ん before "ya" (not the にゃ digraph)
+		"n'a":       "んあ",
+		"n'ka":      "んか",
+		"kon'ya":    "こんや", // apostrophe forces ん before "ya" (not the にゃ digraph)
 		"kin'youbi": "きんようび",
 		// Documented ambiguity (research.md): without an apostrophe, n+y+vowel
 		// is read as the nya/nyu/nyo digraph, matching standard IME convention.
