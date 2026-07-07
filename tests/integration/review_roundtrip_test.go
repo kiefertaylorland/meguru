@@ -12,8 +12,10 @@ import (
 	"meguru/internal/scheduler"
 )
 
-// Rating a card writes a permanent review record and reschedules it per the
-// naive interval rule (FR-007, FR-008, SC-002).
+// Rating a card writes a permanent review record and reschedules it via
+// real FSRS output: due dates always move into the future, and an Again
+// rating always comes due sooner than an Easy rating on an identical fresh
+// card (FR-005, FR-006, SC-002).
 func TestReview_RateAgainAndEasy_ReschedulesAndLogs(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()
@@ -29,33 +31,31 @@ func TestReview_RateAgainAndEasy_ReschedulesAndLogs(t *testing.T) {
 
 	var dueAt string
 	require.NoError(t, db.QueryRow(`SELECT due_at FROM srs_state WHERE card_id = ?`, again.ID).Scan(&dueAt))
-	due, err := time.Parse(time.RFC3339, dueAt)
+	againDue, err := time.Parse(time.RFC3339, dueAt)
 	require.NoError(t, err)
-	require.WithinDuration(t, now.Add(1*time.Minute), due, 2*time.Second)
+	require.True(t, againDue.After(now), "Again's next due date must be in the future")
 
 	var logCount int
 	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM review_log WHERE card_id = ?`, again.ID).Scan(&logCount))
 	require.Equal(t, 1, logCount)
 
-	// Next due card is a different one (the "Again" card is now due in ~1m, not now).
-	easy, err := svc.NextDueCard(ctx)
-	require.NoError(t, err)
-	require.NotNil(t, easy)
-	require.NotEqual(t, again.ID, easy.ID)
-	require.NoError(t, svc.Rate(ctx, easy.ID, scheduler.Easy, now))
+	var easyID int64
+	require.NoError(t, db.QueryRow(`SELECT card_id FROM srs_state WHERE card_id <> ? ORDER BY card_id LIMIT 1`, again.ID).Scan(&easyID))
+	require.NoError(t, svc.Rate(ctx, easyID, scheduler.Easy, now))
 
-	require.NoError(t, db.QueryRow(`SELECT due_at FROM srs_state WHERE card_id = ?`, easy.ID).Scan(&dueAt))
-	due, err = time.Parse(time.RFC3339, dueAt)
+	require.NoError(t, db.QueryRow(`SELECT due_at FROM srs_state WHERE card_id = ?`, easyID).Scan(&dueAt))
+	easyDue, err := time.Parse(time.RFC3339, dueAt)
 	require.NoError(t, err)
-	require.WithinDuration(t, now.Add(7*24*time.Hour), due, 2*time.Second)
+	require.True(t, easyDue.After(now), "Easy's next due date must be in the future")
+	require.True(t, againDue.Before(easyDue), "Again should come due before Easy on identical fresh cards")
 
-	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM review_log WHERE card_id = ?`, easy.ID).Scan(&logCount))
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM review_log WHERE card_id = ?`, easyID).Scan(&logCount))
 	require.Equal(t, 1, logCount)
 
 	// The Easy card must not be due again the same day.
 	stillDue, err := svc.NextDueCard(ctx)
 	require.NoError(t, err)
 	if stillDue != nil {
-		require.NotEqual(t, easy.ID, stillDue.ID)
+		require.NotEqual(t, easyID, stillDue.ID)
 	}
 }
