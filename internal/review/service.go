@@ -84,45 +84,91 @@ func (s *service) Rate(ctx context.Context, cardID int64, rating scheduler.Ratin
 	}
 	defer tx.Rollback()
 
-	var state string
+	var stateStr string
+	var stability, difficulty float64
+	var reps, lapses int
 	var lastReviewAt sql.NullString
-	err = tx.QueryRowContext(ctx, `SELECT state, last_review_at FROM srs_state WHERE card_id = ?`, cardID).
-		Scan(&state, &lastReviewAt)
+	err = tx.QueryRowContext(ctx, `
+		SELECT state, stability, difficulty, reps, lapses, last_review_at
+		FROM srs_state WHERE card_id = ?`, cardID).
+		Scan(&stateStr, &stability, &difficulty, &reps, &lapses, &lastReviewAt)
 	if err != nil {
 		return fmt.Errorf("read srs_state for card %d: %w", cardID, err)
 	}
 
-	var elapsedDays sql.NullFloat64
+	state, err := stateFromString(stateStr)
+	if err != nil {
+		return fmt.Errorf("read srs_state for card %d: %w", cardID, err)
+	}
+
+	current := scheduler.CardState{
+		State:      state,
+		Stability:  stability,
+		Difficulty: difficulty,
+		Reps:       reps,
+		Lapses:     lapses,
+	}
 	if lastReviewAt.Valid {
 		if prev, perr := time.Parse(time.RFC3339, lastReviewAt.String); perr == nil {
-			elapsedDays = sql.NullFloat64{Float64: now.Sub(prev).Hours() / 24, Valid: true}
+			current.LastReviewAt = &prev
 		}
 	}
 
-	due := scheduler.NextDue(rating, now)
-	scheduledDays := due.Sub(now).Hours() / 24
-	nowStr := now.UTC().Format(time.RFC3339)
-	dueStr := due.UTC().Format(time.RFC3339)
+	outcome := scheduler.Schedule(current, rating, now)
 
-	lapseIncrement := 0
-	if rating == scheduler.Again {
-		lapseIncrement = 1
+	nowStr := now.UTC().Format(time.RFC3339)
+	dueStr := outcome.DueAt.UTC().Format(time.RFC3339)
+
+	var elapsedDays sql.NullFloat64
+	if current.LastReviewAt != nil {
+		elapsedDays = sql.NullFloat64{Float64: outcome.ElapsedDays, Valid: true}
 	}
 
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO review_log (card_id, rating, reviewed_at, state_before, elapsed_days, scheduled_days)
-		VALUES (?, ?, ?, ?, ?, ?)`,
-		cardID, int(rating), nowStr, state, elapsedDays, scheduledDays); err != nil {
+		INSERT INTO review_log (card_id, rating, reviewed_at, state_before, stability_before, difficulty_before, elapsed_days, scheduled_days)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		cardID, int(rating), nowStr, stateStr, stability, difficulty, elapsedDays, outcome.ScheduledDays); err != nil {
 		return fmt.Errorf("insert review_log: %w", err)
 	}
 
 	if _, err := tx.ExecContext(ctx, `
 		UPDATE srs_state
-		SET state = 'learning', due_at = ?, last_review_at = ?, reps = reps + 1, lapses = lapses + ?
+		SET state = ?, stability = ?, difficulty = ?, due_at = ?, last_review_at = ?, reps = ?, lapses = ?
 		WHERE card_id = ?`,
-		dueStr, nowStr, lapseIncrement, cardID); err != nil {
+		stateToString(outcome.NextState), outcome.Stability, outcome.Difficulty, dueStr, nowStr,
+		outcome.Reps, outcome.Lapses, cardID); err != nil {
 		return fmt.Errorf("update srs_state: %w", err)
 	}
 
 	return tx.Commit()
+}
+
+// stateFromString maps srs_state.state's CHECK-constrained values to
+// scheduler.State.
+func stateFromString(s string) (scheduler.State, error) {
+	switch s {
+	case "new":
+		return scheduler.StateNew, nil
+	case "learning":
+		return scheduler.StateLearning, nil
+	case "review":
+		return scheduler.StateReview, nil
+	case "relearning":
+		return scheduler.StateRelearning, nil
+	default:
+		return 0, fmt.Errorf("unknown srs_state.state %q", s)
+	}
+}
+
+func stateToString(s scheduler.State) string {
+	switch s {
+	case scheduler.StateLearning:
+		return "learning"
+	case scheduler.StateReview:
+		return "review"
+	case scheduler.StateRelearning:
+		return "relearning"
+	default:
+		return "new"
+	}
 }

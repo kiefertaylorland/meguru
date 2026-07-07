@@ -11,10 +11,12 @@ require (
 	github.com/creack/pty v1.1.24
 	github.com/mattn/go-isatty v0.0.22
 	github.com/mattn/go-runewidth v0.0.23
+	github.com/open-spaced-repetition/go-fsrs/v3 v3.3.1
 	github.com/rivo/uniseg v0.4.7
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.9.0
 	modernc.org/sqlite v1.53.0
+	pgregory.net/rapid v1.3.0
 )
 
 require (

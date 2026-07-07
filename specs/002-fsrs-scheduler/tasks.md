@@ -25,10 +25,10 @@ require automated verification.
 **Purpose**: Add the new dependency and pin/verify its API surface before any mapping code is
 written (research.md's "verification step required before implementation").
 
-- [ ] T001 Run `go get github.com/open-spaced-repetition/go-fsrs@latest` and
+- [X] T001 Run `go get github.com/open-spaced-repetition/go-fsrs@latest` and
       `go get -t pgregory.net/rapid@latest` in the repo root, then `go mod tidy`. Record the
       resolved `go-fsrs` version in `go.mod`.
-- [ ] T002 Run `go doc github.com/open-spaced-repetition/go-fsrs` (and sub-types `Card`,
+- [X] T002 Run `go doc github.com/open-spaced-repetition/go-fsrs` (and sub-types `Card`,
       `SchedulingInfo`, `FSRS`, `Parameters`, `Rating`, `State`) against the version pinned in
       T001; write the confirmed field names and enum ordinals as a code comment at the top of
       `internal/scheduler/fsrs.go` (created in T004) before writing any mapping logic —
@@ -46,7 +46,7 @@ US1 work since both old and new schedulers can't coexist in one package under th
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T003 Delete `internal/scheduler/naive.go` and `internal/scheduler/naive_test.go` (superseded
+- [X] T003 Delete `internal/scheduler/naive.go` and `internal/scheduler/naive_test.go` (superseded
       wholesale per `naive.go`'s own header comment: "go-fsrs replaces it wholesale in M2").
 
 **Checkpoint**: `internal/scheduler` package is empty and ready for the FSRS implementation.
@@ -65,18 +65,18 @@ rating always produces a sooner due date than an "Easy" rating on an identical f
 
 ### Implementation for User Story 1
 
-- [ ] T004 [US1] In `internal/scheduler/fsrs.go`, define `Rating` (unchanged: Again=1, Hard=2,
+- [X] T004 [US1] In `internal/scheduler/fsrs.go`, define `Rating` (unchanged: Again=1, Hard=2,
       Good=3, Easy=4), the new `State` enum (`StateNew`, `StateLearning`, `StateReview`,
       `StateRelearning` mapping to `srs_state.state`'s CHECK values), and the `CardState`/
       `Outcome` structs exactly per `contracts/scheduler.md`'s Public Surface section.
-- [ ] T005 [US1] In `internal/scheduler/fsrs.go`, implement `Schedule(current CardState, rating
+- [X] T005 [US1] In `internal/scheduler/fsrs.go`, implement `Schedule(current CardState, rating
       Rating, now time.Time) Outcome`: a package-level `var defaultFSRS =
       fsrs.NewFSRS(fsrs.DefaultParam())` (or the constructor name confirmed in T002), private
       `toFSRSCard(CardState) fsrs.Card` / `fromSchedulingInfo(fsrs.SchedulingInfo) Outcome`
       mapping helpers, and `Schedule` wiring them through `defaultFSRS.Repeat`. Leave a `//
       TODO(M2.x): expose Parameters once per-user optimization lands` comment at the
       `defaultFSRS` declaration (depends on T004).
-- [ ] T006 [US1] Update `internal/review/service.go`'s `Rate` method per
+- [X] T006 [US1] Update `internal/review/service.go`'s `Rate` method per
       `contracts/scheduler.md`'s Caller Contract: widen the `SELECT` to `state, stability,
       difficulty, reps, lapses, last_review_at`; build a `scheduler.CardState`; call
       `scheduler.Schedule(current, rating, now)` once; insert the `review_log` row using the
@@ -93,19 +93,19 @@ rating always produces a sooner due date than an "Easy" rating on an identical f
 > **NOTE**: Write T007/T008 first against the T004 types, confirm they fail without T005, then
 > implement T005.
 
-- [ ] T007 [P] [US1] Property-based tests in `internal/scheduler/fsrs_test.go` (using
+- [X] T007 [P] [US1] Property-based tests in `internal/scheduler/fsrs_test.go` (using
       `pgregory.net/rapid`): generate random `(CardState, Rating, now)` triples and assert
       `Schedule`'s postconditions from `contracts/scheduler.md` — `Outcome.DueAt` always after
       `now`; Again/Hard/Good/Easy on identical `current` produce non-decreasing `DueAt`;
       `Stability`/`Difficulty` stay in FSRS-documented bounds (no NaN/negative); state transitions
       only follow the graph in `data-model.md`; `Schedule` is deterministic for identical inputs.
-- [ ] T008 [P] [US1] Reference-vector parity test in
+- [X] T008 [P] [US1] Reference-vector parity test in
       `internal/scheduler/fsrs_reference_test.go`: a table-driven test hardcoding a handful of
       published upstream FSRS test vectors (rating sequences against a fixed start date under
       `DEFAULT_PARAMETERS`) and asserting `Schedule`'s stability/difficulty/interval outputs match
       exactly — this is what proves the `CardState`↔`fsrs.Card` mapping (T005) introduces no
       drift.
-- [ ] T009 [US1] Update `internal/review/service_test.go` per research.md's lapse-semantics
+- [X] T009 [US1] Update `internal/review/service_test.go` per research.md's lapse-semantics
       decision and plan.md: fix `TestRate_ComputesScheduledDaysFromNextDue` (line 107, currently
       asserts `≈7.0 days` for Easy — replace with a pinned reference value or an Easy > Good >
       Hard > Again ordering check); fix `TestRate_SecondRatingComputesElapsedDays` (line 135,
@@ -114,7 +114,7 @@ rating always produces a sooner due date than an "Easy" rating on an identical f
       increment lapses) and an on-review-state-card case (increments lapses), per FR-007; re-run
       `TestRate_GoodDoesNotIncrementLapses` (line 204) and `TestRate_FirstRatingLeavesElapsedDaysNull`
       (line 122) as regression checks (depends on T006).
-- [ ] T010 [P] [US1] Update `tests/integration/review_roundtrip_test.go`'s
+- [X] T010 [P] [US1] Update `tests/integration/review_roundtrip_test.go`'s
       `TestReview_RateAgainAndEasy_ReschedulesAndLogs` (line 17): replace the hardcoded
       `WithinDuration(now.Add(1*time.Minute))`/`WithinDuration(now.Add(7*24*time.Hour))`
       assertions with structural invariants — `due.After(now)` for both ratings, and
@@ -130,14 +130,14 @@ is adaptive per-card, matching spec.md's Acceptance Scenarios 1–5.
 **Purpose**: Confirm the swap didn't regress anything outside its scope and that offline/CI
 guarantees still hold.
 
-- [ ] T011 [P] Run `go test ./internal/tui/... ./internal/plain/... ./internal/cli/...` as a
+- [X] T011 [P] Run `go test ./internal/tui/... ./internal/plain/... ./internal/cli/...` as a
       sanity check — no source changes expected here (only the `scheduler.Rating` enum is
       referenced, and it's unchanged), but confirm nothing incidentally broke.
-- [ ] T012 Run `go test ./...` (full-suite regression) and confirm all M1 packages (`cli`, `tui`,
+- [X] T012 Run `go test ./...` (full-suite regression) and confirm all M1 packages (`cli`, `tui`,
       `plain`, `storage`, `deck`, `textwidth`) plus this feature's updated/new tests are green.
-- [ ] T013 Confirm the M1 network-denied CI job (`.github/workflows/ci.yml`) still passes
+- [X] T013 Confirm the M1 network-denied CI job (`.github/workflows/ci.yml`) still passes
       unmodified, proving `go-fsrs`/`pgregory.net/rapid` introduce zero egress (P-1/SEC-8).
-- [ ] T014 Run the `quickstart.md` validation guide (§§1–4) end-to-end and confirm every expected
+- [X] T014 Run the `quickstart.md` validation guide (§§1–4) end-to-end and confirm every expected
       outcome holds, including the manual interval-lengthening check in §3.
 
 ---
