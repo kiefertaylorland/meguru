@@ -74,7 +74,7 @@ safe to pipe directly into `jq` or store from a script:
   "streak_days": 4,
   "retention_percent": 92.5,
   "retention_window_days": 30,
-  "next_due_at": null
+  "next_due_at": "2026-07-08T09:15:00Z"
 }
 ```
 

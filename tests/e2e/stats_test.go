@@ -11,8 +11,8 @@ import (
 )
 
 // `meguru stats` against a freshly created, never-reviewed profile exits 0
-// and shows the seeded deck's counts with no color escape codes
-// (contracts/stats-cli.md).
+// and shows zero due/total counts (stats does not seed) with no color escape
+// codes (contracts/stats-cli.md).
 func TestStats_PlainMode_FreshProfile(t *testing.T) {
 	bin := buildBinary(t)
 	dataDir := t.TempDir()

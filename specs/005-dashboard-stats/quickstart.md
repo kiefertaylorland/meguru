@@ -33,8 +33,8 @@ rm -rf "${XDG_DATA_HOME:-$HOME/.local/share}/meguru"   # clean profile
 
 # First run: no reviews yet.
 ./bin/meguru stats
-# Expected: due/total counts reflect the freshly-seeded hiragana deck (from `review`'s own
-# seeding step — stats itself does not seed), streak is 0, retention reads "n/a (no reviews yet)".
+# Expected: due/total counts are 0 (stats does not seed; `review` hasn't run yet to seed the
+# deck), streak is 0, retention reads "n/a (no reviews yet)".
 
 ./bin/meguru stats --json
 # Expected: one JSON object, "retention_percent": null, "streak_days": 0.
