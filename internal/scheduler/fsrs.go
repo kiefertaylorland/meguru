@@ -97,6 +97,14 @@ func toFSRSCard(s CardState) fsrs.Card {
 	card.State = fsrs.State(s.State)
 	card.Stability = s.Stability
 	card.Difficulty = s.Difficulty
+	if s.State != StateNew {
+		if card.Stability < 0.1 {
+			card.Stability = 0.1
+		}
+		if card.Difficulty < 1 {
+			card.Difficulty = 1
+		}
+	}
 	card.Reps = uint64(s.Reps)
 	card.Lapses = uint64(s.Lapses)
 	if s.LastReviewAt != nil {

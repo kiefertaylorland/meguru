@@ -40,6 +40,7 @@ func TestReview_RateAgainAndEasy_ReschedulesAndLogs(t *testing.T) {
 	require.Equal(t, 1, logCount)
 
 	// Next due card is a different one (the "Again" card isn't due again immediately).
+	require.True(t, againDue.After(time.Now().UTC()), "Again card became due before the test could inspect the next card")
 	easy, err := svc.NextDueCard(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, easy)

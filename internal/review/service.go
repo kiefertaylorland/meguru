@@ -109,9 +109,13 @@ func (s *service) Rate(ctx context.Context, cardID int64, rating scheduler.Ratin
 		Lapses:     lapses,
 	}
 	if lastReviewAt.Valid {
-		if prev, perr := time.Parse(time.RFC3339, lastReviewAt.String); perr == nil {
-			current.LastReviewAt = &prev
+		prev, perr := time.Parse(time.RFC3339, lastReviewAt.String)
+		if perr != nil {
+			return fmt.Errorf("parse last_review_at for card %d: %w", cardID, perr)
 		}
+		current.LastReviewAt = &prev
+	} else if state != scheduler.StateNew {
+		return fmt.Errorf("read srs_state for card %d: %s card missing last_review_at", cardID, stateStr)
 	}
 
 	outcome := scheduler.Schedule(current, rating, now)
@@ -162,6 +166,8 @@ func stateFromString(s string) (scheduler.State, error) {
 
 func stateToString(s scheduler.State) string {
 	switch s {
+	case scheduler.StateNew:
+		return "new"
 	case scheduler.StateLearning:
 		return "learning"
 	case scheduler.StateReview:
@@ -169,6 +175,6 @@ func stateToString(s scheduler.State) string {
 	case scheduler.StateRelearning:
 		return "relearning"
 	default:
-		return "new"
+		panic(fmt.Sprintf("unknown scheduler.State %d", s))
 	}
 }

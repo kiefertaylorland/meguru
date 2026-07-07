@@ -14,8 +14,8 @@ func genCardState(t *rapid.T, now time.Time) CardState {
 	state := State(rapid.IntRange(0, 3).Draw(t, "state"))
 	cs := CardState{
 		State:      state,
-		Stability:  rapid.Float64Range(0.1, 1000).Draw(t, "stability"),
-		Difficulty: rapid.Float64Range(1, 10).Draw(t, "difficulty"),
+		Stability:  rapid.Float64Range(0, 1000).Draw(t, "stability"),
+		Difficulty: rapid.Float64Range(0, 10).Draw(t, "difficulty"),
 		Reps:       rapid.IntRange(0, 500).Draw(t, "reps"),
 		Lapses:     rapid.IntRange(0, 500).Draw(t, "lapses"),
 	}

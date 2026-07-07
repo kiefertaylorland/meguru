@@ -102,6 +102,30 @@ func TestRate_ReturnsErrorOnClosedDB(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestRate_ReturnsErrorOnMalformedLastReviewAt(t *testing.T) {
+	db := openTestDB(t)
+	cardID := seedOneCard(t, db)
+	_, err := db.Exec(`UPDATE srs_state SET last_review_at = 'not-rfc3339' WHERE card_id = ?`, cardID)
+	require.NoError(t, err)
+	svc := NewService(db)
+
+	err = svc.Rate(context.Background(), cardID, scheduler.Good, time.Now())
+
+	require.ErrorContains(t, err, "parse last_review_at")
+}
+
+func TestRate_ReturnsErrorWhenNonNewStateMissingLastReviewAt(t *testing.T) {
+	db := openTestDB(t)
+	cardID := seedOneCard(t, db)
+	_, err := db.Exec(`UPDATE srs_state SET state = 'learning', last_review_at = NULL WHERE card_id = ?`, cardID)
+	require.NoError(t, err)
+	svc := NewService(db)
+
+	err = svc.Rate(context.Background(), cardID, scheduler.Good, time.Now())
+
+	require.ErrorContains(t, err, "missing last_review_at")
+}
+
 // scheduled_days/due_at reflect real FSRS output now, not a fixed interval;
 // assert the invariant the scheduler guarantees (Again <= Hard <= Good <
 // Easy's next due date on identical fresh cards) rather than a specific
@@ -260,4 +284,10 @@ func TestRate_GoodDoesNotIncrementLapses(t *testing.T) {
 	var lapses int
 	require.NoError(t, db.QueryRow(`SELECT lapses FROM srs_state WHERE card_id = ?`, cardID).Scan(&lapses))
 	require.Zero(t, lapses)
+}
+
+func TestStateToString_PanicsOnUnknownState(t *testing.T) {
+	require.Panics(t, func() {
+		stateToString(scheduler.State(99))
+	})
 }
