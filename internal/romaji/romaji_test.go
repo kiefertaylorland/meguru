@@ -126,7 +126,8 @@ func TestToHiragana_UnrecognizedRunesPassThrough(t *testing.T) {
 		"ka ki": "か き", // the space is an unrecognized rune and passes through
 		"1234":  "1234",
 		"ka!":   "か!",
-		"あいう": "あいう", // already-kana input passes through unchanged
+		"a'ka":  "あ'か",
+		"あいう":   "あいう", // already-kana input passes through unchanged
 	}
 
 	for input, want := range cases {

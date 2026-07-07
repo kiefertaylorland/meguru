@@ -74,11 +74,11 @@ func ToHiragana(input string) string {
 	var out strings.Builder
 
 	for i := 0; i < n; {
-		// n' disambiguator: forces the preceding "n" (already emitted as ん
-		// by the fallback below) to stand alone rather than extend into a
-		// na-row/nya-row mora. The apostrophe itself produces no output.
-		if runes[i] == '\'' {
-			i++
+		// n' disambiguator: forces "n" to stand alone rather than extend
+		// into a na-row/nya-row mora. The apostrophe itself produces no output.
+		if i+1 < n && runes[i] == 'n' && runes[i+1] == '\'' {
+			out.WriteString("ん")
+			i += 2
 			continue
 		}
 
