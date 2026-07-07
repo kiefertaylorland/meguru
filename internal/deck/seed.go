@@ -8,27 +8,38 @@ import (
 	"time"
 )
 
-// Seed loads the embedded hiragana deck into storage on first run, or
-// updates existing notes' fields in place — keyed by their stable
-// "expression" natural key — when the embedded content_version has
-// increased. Existing cards/srs_state/review_log rows are never touched
-// (FR-002, FR-003, FR-004; research.md §3).
+// Seed loads every builtin deck (BuiltinDecks) into storage on first run, or
+// updates an individual deck's existing notes' fields in place — keyed by
+// their stable "expression" natural key within that deck — when that deck's
+// embedded content_version has increased. Existing cards/srs_state/
+// review_log rows are never touched (FR-002, FR-003, FR-004; research.md
+// §3). This seed/update-in-place logic is shared by every builtin deck:
+// adding a new deck means adding one Definition in embed.go, not new seed
+// code.
 func Seed(ctx context.Context, db *sql.DB, now time.Time) error {
-	content, err := Hiragana()
-	if err != nil {
-		return err
+	for _, d := range BuiltinDecks() {
+		content, err := d.Content()
+		if err != nil {
+			return err
+		}
+		if err := seedDeck(ctx, db, d, content, now); err != nil {
+			return err
+		}
 	}
+	return nil
+}
 
+func seedDeck(ctx context.Context, db *sql.DB, d Definition, content Content, now time.Time) error {
 	var deckID int64
 	var storedVersion int
-	err = db.QueryRowContext(ctx, `SELECT id, content_version FROM decks WHERE slug = ?`, HiraganaSlug).
+	err := db.QueryRowContext(ctx, `SELECT id, content_version FROM decks WHERE slug = ?`, d.Slug).
 		Scan(&deckID, &storedVersion)
 
 	switch {
 	case err == sql.ErrNoRows:
-		return seedFresh(ctx, db, content, now)
+		return seedFresh(ctx, db, d, content, now)
 	case err != nil:
-		return fmt.Errorf("look up deck %s: %w", HiraganaSlug, err)
+		return fmt.Errorf("look up deck %s: %w", d.Slug, err)
 	case content.ContentVersion > storedVersion:
 		return updateInPlace(ctx, db, deckID, content, now)
 	default:
@@ -36,7 +47,7 @@ func Seed(ctx context.Context, db *sql.DB, now time.Time) error {
 	}
 }
 
-func seedFresh(ctx context.Context, db *sql.DB, content Content, now time.Time) error {
+func seedFresh(ctx context.Context, db *sql.DB, d Definition, content Content, now time.Time) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -44,8 +55,8 @@ func seedFresh(ctx context.Context, db *sql.DB, content Content, now time.Time) 
 	defer tx.Rollback()
 
 	res, err := tx.ExecContext(ctx,
-		`INSERT INTO decks (slug, name, kind, source, content_version) VALUES (?, ?, 'kana', 'builtin', ?)`,
-		HiraganaSlug, "Hiragana", content.ContentVersion)
+		`INSERT INTO decks (slug, name, kind, source, content_version) VALUES (?, ?, ?, 'builtin', ?)`,
+		d.Slug, d.Name, d.Kind, content.ContentVersion)
 	if err != nil {
 		return fmt.Errorf("insert deck: %w", err)
 	}
