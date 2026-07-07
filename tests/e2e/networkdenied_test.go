@@ -36,7 +36,7 @@ func TestNetworkDenied_CoreLoopCompletesFully(t *testing.T) {
 		return out.String()
 	}
 
-	first := run("good\n")
+	first := run("a\ngood\n")
 	require.Contains(t, first, "Expression:")
 	require.Contains(t, first, "Recorded: Good")
 

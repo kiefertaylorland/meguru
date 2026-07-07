@@ -20,7 +20,7 @@ func TestPlainMode_NoEscapeSequences(t *testing.T) {
 
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
-	cmd.Stdin = strings.NewReader("again\n")
+	cmd.Stdin = strings.NewReader("a\nagain\n")
 
 	require.NoError(t, cmd.Run())
 

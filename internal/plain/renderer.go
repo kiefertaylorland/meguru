@@ -32,6 +32,19 @@ func Run(ctx context.Context, svc review.Service, in io.Reader, out io.Writer) e
 		}
 
 		printField(out, "Expression", card.Expression)
+		fmt.Fprintln(out, "Type the reading (romaji):")
+		fmt.Fprint(out, "> ")
+
+		if !scanner.Scan() {
+			return scanner.Err()
+		}
+		result := review.CheckAnswer(card, scanner.Text())
+		if result.Correct {
+			fmt.Fprintf(out, "Correct! (%s)\n", result.Kana)
+		} else {
+			fmt.Fprintf(out, "Not quite — you typed: %s\n", result.Kana)
+		}
+
 		printField(out, "Reading", card.Reading)
 		printField(out, "Meaning", card.Meaning)
 		fmt.Fprintln(out, "Rate: (a)gain / (h)ard / (g)ood / (e)asy")
