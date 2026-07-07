@@ -126,7 +126,7 @@ func TestToHiragana_UnrecognizedRunesPassThrough(t *testing.T) {
 		"ka ki": "か き", // the space is an unrecognized rune and passes through
 		"1234":  "1234",
 		"ka!":   "か!",
-		"a'ka":  "あ'か", // apostrophe is only special as the n' disambiguator
+		"a'ka":  "あ'か", // apostrophes pass through unless part of n'
 		"あいう":   "あいう", // already-kana input passes through unchanged
 	}
 
