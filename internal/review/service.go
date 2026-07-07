@@ -175,6 +175,6 @@ func stateToString(s scheduler.State) string {
 	case scheduler.StateRelearning:
 		return "relearning"
 	default:
-		panic(fmt.Sprintf("unknown scheduler.State %d", s))
+		panic(fmt.Sprintf("BUG: unknown scheduler.State %d (must be StateNew/StateLearning/StateReview/StateRelearning)", s))
 	}
 }

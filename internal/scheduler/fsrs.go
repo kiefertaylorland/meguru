@@ -98,6 +98,7 @@ func toFSRSCard(s CardState) fsrs.Card {
 	card.Stability = s.Stability
 	card.Difficulty = s.Difficulty
 	if s.State != StateNew {
+		// Normalize legacy naive-scheduler placeholders to FSRS-valid minimums.
 		if card.Stability < 0.1 {
 			card.Stability = 0.1
 		}
