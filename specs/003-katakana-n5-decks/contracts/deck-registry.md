@@ -26,7 +26,7 @@ type Definition struct {
     Slug string
     Name string
     Kind string
-    // unexported: raw func() []byte
+    // raw func() []byte exists in implementation as an unexported, package-owned content loader.
 }
 
 func (d Definition) Content() (Content, error)

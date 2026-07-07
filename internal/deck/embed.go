@@ -59,7 +59,7 @@ type Definition struct {
 // Content parses this definition's embedded JSON envelope.
 func (d Definition) Content() (Content, error) {
 	if d.raw == nil {
-		return Content{}, fmt.Errorf("embedded %s deck has no content loader", d.Slug)
+		return Content{}, fmt.Errorf("invalid Definition for %s: missing content loader", d.Slug)
 	}
 	var c Content
 	if err := json.Unmarshal(d.raw(), &c); err != nil {
@@ -77,8 +77,9 @@ var builtinDecks = []Definition{
 	{Slug: JLPTN5VocabSlug, Name: "JLPT N5 Vocabulary", Kind: "vocab", raw: func() []byte { return jlptN5VocabJSON }},
 }
 
-// BuiltinDecks returns the fixed list of embedded deck definitions that Seed
-// loads into storage on every startup.
+// BuiltinDecks returns a copy of the fixed list of embedded deck definitions
+// that Seed loads into storage on every startup. The unexported raw loaders are
+// immutable package functions shared by the copied Definition values.
 func BuiltinDecks() []Definition {
 	return append([]Definition(nil), builtinDecks...)
 }

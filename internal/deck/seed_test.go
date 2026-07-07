@@ -72,7 +72,7 @@ func TestHiragana_ErrorOnMalformedJSON(t *testing.T) {
 func TestDefinitionContent_ErrorOnMissingLoader(t *testing.T) {
 	_, err := Definition{Slug: "missing"}.Content()
 
-	require.ErrorContains(t, err, "embedded missing deck has no content loader")
+	require.ErrorContains(t, err, "invalid Definition for missing: missing content loader")
 }
 
 func TestKatakana_ParsesEmbeddedJSON(t *testing.T) {
@@ -147,6 +147,7 @@ func TestBuiltinDecks_ReturnsCopy(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotEmpty(t, content.Notes)
+	require.Equal(t, HiraganaSlug, BuiltinDecks()[0].Slug)
 }
 
 func TestLookupBuiltin_UnknownSlugReturnsError(t *testing.T) {
