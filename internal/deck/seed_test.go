@@ -69,6 +69,12 @@ func TestHiragana_ErrorOnMalformedJSON(t *testing.T) {
 	require.ErrorContains(t, err, "parse embedded kana-hiragana deck")
 }
 
+func TestDefinitionContent_ErrorOnMissingLoader(t *testing.T) {
+	_, err := Definition{Slug: "missing"}.Content()
+
+	require.ErrorContains(t, err, "embedded missing deck has no content loader")
+}
+
 func TestKatakana_ParsesEmbeddedJSON(t *testing.T) {
 	content, err := Katakana()
 	require.NoError(t, err)
@@ -114,6 +120,8 @@ func TestBuiltinDecks_AllDistinctAndValid(t *testing.T) {
 	seenSlugs := map[string]bool{}
 	validKinds := map[string]bool{"kana": true, "kanji": true, "vocab": true, "keigo": true, "sentence": true}
 	for _, d := range decks {
+		require.NotEmpty(t, d.Slug)
+		require.NotEmpty(t, d.Kind)
 		require.False(t, seenSlugs[d.Slug], "duplicate slug %s", d.Slug)
 		seenSlugs[d.Slug] = true
 		require.True(t, validKinds[d.Kind], "unexpected kind %s for %s", d.Kind, d.Slug)
@@ -129,6 +137,22 @@ func TestBuiltinDecks_AllDistinctAndValid(t *testing.T) {
 			seenExpr[n.Expression] = true
 		}
 	}
+}
+
+func TestBuiltinDecks_ReturnsCopy(t *testing.T) {
+	decks := BuiltinDecks()
+	decks[0] = Definition{}
+
+	content, err := Hiragana()
+
+	require.NoError(t, err)
+	require.NotEmpty(t, content.Notes)
+}
+
+func TestLookupBuiltin_UnknownSlugReturnsError(t *testing.T) {
+	_, err := lookupBuiltin("missing")
+
+	require.ErrorContains(t, err, "unknown builtin deck missing")
 }
 
 // Seed must load every builtin deck on a fresh database.
@@ -200,6 +224,50 @@ func TestSeed_LookupErrorPropagates(t *testing.T) {
 	err := Seed(context.Background(), db, time.Now())
 
 	require.Error(t, err)
+}
+
+func TestSeed_ParsesAllBuiltinDecksBeforeWriting(t *testing.T) {
+	original := builtinDecks
+	t.Cleanup(func() { builtinDecks = original })
+	validRaw, err := json.Marshal(Content{
+		ContentVersion: 1,
+		Notes:          []Note{{Expression: "x", Reading: "x", Meaning: "x"}},
+	})
+	require.NoError(t, err)
+	builtinDecks = []Definition{
+		{Slug: "valid", Name: "Valid", Kind: "kana", raw: func() []byte { return validRaw }},
+		{Slug: "bad", Name: "Bad", Kind: "kana", raw: func() []byte { return []byte("not json") }},
+	}
+	db := openTestDB(t)
+
+	err = Seed(context.Background(), db, time.Now())
+
+	require.ErrorContains(t, err, "parse embedded bad deck")
+	var deckCount int
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM decks`).Scan(&deckCount))
+	require.Zero(t, deckCount)
+}
+
+func TestSeed_RollsBackAllBuiltinWritesOnLaterSeedError(t *testing.T) {
+	original := builtinDecks
+	t.Cleanup(func() { builtinDecks = original })
+	raw, err := json.Marshal(Content{
+		ContentVersion: 1,
+		Notes:          []Note{{Expression: "x", Reading: "x", Meaning: "x"}},
+	})
+	require.NoError(t, err)
+	builtinDecks = []Definition{
+		{Slug: "valid", Name: "Valid", Kind: "kana", raw: func() []byte { return raw }},
+		{Slug: "bad", Name: "Bad", Kind: "invalid", raw: func() []byte { return raw }},
+	}
+	db := openTestDB(t)
+
+	err = Seed(context.Background(), db, time.Now())
+
+	require.ErrorContains(t, err, "insert deck")
+	var deckCount int
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM decks`).Scan(&deckCount))
+	require.Zero(t, deckCount)
 }
 
 func TestSeedDeck_FreshSeedCreatesDeckNotesCardsAndSrsState(t *testing.T) {

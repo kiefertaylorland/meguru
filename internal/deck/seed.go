@@ -17,43 +17,65 @@ import (
 // adding a new deck means adding one Definition in embed.go, not new seed
 // code.
 func Seed(ctx context.Context, db *sql.DB, now time.Time) error {
+	type parsedDeck struct {
+		def     Definition
+		content Content
+	}
+	var parsed []parsedDeck
 	for _, d := range BuiltinDecks() {
 		content, err := d.Content()
 		if err != nil {
 			return err
 		}
-		if err := seedDeck(ctx, db, d, content, now); err != nil {
-			return err
-		}
+		parsed = append(parsed, parsedDeck{def: d, content: content})
 	}
-	return nil
-}
 
-func seedDeck(ctx context.Context, db *sql.DB, d Definition, content Content, now time.Time) error {
-	var deckID int64
-	var storedVersion int
-	err := db.QueryRowContext(ctx, `SELECT id, content_version FROM decks WHERE slug = ?`, d.Slug).
-		Scan(&deckID, &storedVersion)
-
-	switch {
-	case err == sql.ErrNoRows:
-		return seedFresh(ctx, db, d, content, now)
-	case err != nil:
-		return fmt.Errorf("look up deck %s: %w", d.Slug, err)
-	case content.ContentVersion > storedVersion:
-		return updateInPlace(ctx, db, deckID, content, now)
-	default:
-		return nil
-	}
-}
-
-func seedFresh(ctx context.Context, db *sql.DB, d Definition, content Content, now time.Time) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
+	for _, p := range parsed {
+		if err := seedDeckTx(ctx, tx, p.def, p.content, now); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func seedDeck(ctx context.Context, db *sql.DB, d Definition, content Content, now time.Time) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if err := seedDeckTx(ctx, tx, d, content, now); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func seedDeckTx(ctx context.Context, tx *sql.Tx, d Definition, content Content, now time.Time) error {
+	var deckID int64
+	var storedVersion int
+	err := tx.QueryRowContext(ctx, `SELECT id, content_version FROM decks WHERE slug = ?`, d.Slug).
+		Scan(&deckID, &storedVersion)
+
+	switch {
+	case err == sql.ErrNoRows:
+		return seedFresh(ctx, tx, d, content, now)
+	case err != nil:
+		return fmt.Errorf("look up deck %s: %w", d.Slug, err)
+	case content.ContentVersion > storedVersion:
+		return updateInPlace(ctx, tx, deckID, content, now)
+	default:
+		return nil
+	}
+}
+
+func seedFresh(ctx context.Context, tx *sql.Tx, d Definition, content Content, now time.Time) error {
 	res, err := tx.ExecContext(ctx,
 		`INSERT INTO decks (slug, name, kind, source, content_version) VALUES (?, ?, ?, 'builtin', ?)`,
 		d.Slug, d.Name, d.Kind, content.ContentVersion)
@@ -72,16 +94,10 @@ func seedFresh(ctx context.Context, db *sql.DB, d Definition, content Content, n
 		}
 	}
 
-	return tx.Commit()
+	return nil
 }
 
-func updateInPlace(ctx context.Context, db *sql.DB, deckID int64, content Content, now time.Time) error {
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
+func updateInPlace(ctx context.Context, tx *sql.Tx, deckID int64, content Content, now time.Time) error {
 	nowStr := now.UTC().Format(time.RFC3339)
 	for _, note := range content.Notes {
 		fields, err := json.Marshal(note)
@@ -113,7 +129,7 @@ func updateInPlace(ctx context.Context, db *sql.DB, deckID int64, content Conten
 		return fmt.Errorf("bump content_version: %w", err)
 	}
 
-	return tx.Commit()
+	return nil
 }
 
 func insertNote(ctx context.Context, tx *sql.Tx, deckID int64, note Note, nowStr string) error {

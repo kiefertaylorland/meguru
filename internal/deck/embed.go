@@ -58,6 +58,9 @@ type Definition struct {
 
 // Content parses this definition's embedded JSON envelope.
 func (d Definition) Content() (Content, error) {
+	if d.raw == nil {
+		return Content{}, fmt.Errorf("embedded %s deck has no content loader", d.Slug)
+	}
 	var c Content
 	if err := json.Unmarshal(d.raw(), &c); err != nil {
 		return Content{}, fmt.Errorf("parse embedded %s deck: %w", d.Slug, err)
@@ -77,7 +80,7 @@ var builtinDecks = []Definition{
 // BuiltinDecks returns the fixed list of embedded deck definitions that Seed
 // loads into storage on every startup.
 func BuiltinDecks() []Definition {
-	return builtinDecks
+	return append([]Definition(nil), builtinDecks...)
 }
 
 // Hiragana returns the parsed embedded hiragana deck content.
@@ -98,5 +101,5 @@ func lookupBuiltin(slug string) (Content, error) {
 			return d.Content()
 		}
 	}
-	panic("deck: unknown builtin slug " + slug)
+	return Content{}, fmt.Errorf("unknown builtin deck %s", slug)
 }
