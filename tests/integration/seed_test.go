@@ -10,8 +10,9 @@ import (
 	"meguru/internal/deck"
 )
 
-// Seeding twice must not duplicate the deck, its notes, or its cards
-// (FR-002, FR-003).
+// Seeding twice must not duplicate any built-in deck, its notes, or its
+// cards (FR-002, FR-003) — proven across every built-in deck (hiragana,
+// katakana, N5 kanji, N5 vocab), not just the single M1 hiragana deck.
 func TestSeed_DoesNotDuplicateOnSecondRun(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()
@@ -20,16 +21,21 @@ func TestSeed_DoesNotDuplicateOnSecondRun(t *testing.T) {
 	require.NoError(t, deck.Seed(ctx, db, now))
 	require.NoError(t, deck.Seed(ctx, db, now))
 
+	builtins := deck.BuiltinDecks()
 	var deckCount int
 	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM decks`).Scan(&deckCount))
-	require.Equal(t, 1, deckCount)
+	require.Equal(t, len(builtins), deckCount)
 
-	content, err := deck.Hiragana()
-	require.NoError(t, err)
+	var wantNotes int
+	for _, d := range builtins {
+		content, err := d.Content()
+		require.NoError(t, err)
+		wantNotes += len(content.Notes)
+	}
 
 	var noteCount, cardCount int
 	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM notes`).Scan(&noteCount))
 	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM cards`).Scan(&cardCount))
-	require.Equal(t, len(content.Notes), noteCount)
-	require.Equal(t, len(content.Notes), cardCount)
+	require.Equal(t, wantNotes, noteCount)
+	require.Equal(t, wantNotes, cardCount)
 }

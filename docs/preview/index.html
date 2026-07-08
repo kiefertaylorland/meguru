@@ -28,8 +28,14 @@
         padding: 16px;
         background: radial-gradient(circle at top, #162033 0%, var(--bg) 55%);
         color: var(--text);
-        font: 16px/1.5 ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas,
-          Liberation Mono, monospace;
+        font:
+          16px/1.5 ui-monospace,
+          SFMono-Regular,
+          SF Mono,
+          Menlo,
+          Consolas,
+          Liberation Mono,
+          monospace;
       }
 
       main {
@@ -133,7 +139,9 @@
         padding: 14px 12px;
         font: inherit;
         cursor: pointer;
-        transition: transform 120ms ease, border-color 120ms ease,
+        transition:
+          transform 120ms ease,
+          border-color 120ms ease,
           background 120ms ease;
       }
 
@@ -190,7 +198,9 @@
         </div>
         <div class="terminal__body">
           <div class="prompt">$ meguru review</div>
-          <p class="line">Try a small, self-contained review session in the browser.</p>
+          <p class="line">
+            Try a small, self-contained review session in the browser.
+          </p>
           <p class="line" id="status"></p>
 
           <article class="card" aria-live="polite">
@@ -199,7 +209,9 @@
           </article>
 
           <div class="controls">
-            <button id="reveal">Reveal <span class="accent">Space</span></button>
+            <button id="reveal">
+              Reveal <span class="accent">Space</span>
+            </button>
             <button id="again" disabled>1 Again</button>
             <button id="hard" disabled>2 Hard</button>
             <button id="good" disabled>3 Good</button>
@@ -219,20 +231,20 @@
         { expression: "い", reading: "i", meaning: "i" },
         { expression: "う", reading: "u", meaning: "u" },
         { expression: "え", reading: "e", meaning: "e" },
-        { expression: "お", reading: "o", meaning: "o" }
+        { expression: "お", reading: "o", meaning: "o" },
       ];
 
       const ratings = [
         { id: "again", label: "Again" },
         { id: "hard", label: "Hard" },
         { id: "good", label: "Good" },
-        { id: "easy", label: "Easy" }
+        { id: "easy", label: "Easy" },
       ];
 
       const state = {
         index: 0,
         revealed: false,
-        history: []
+        history: [],
       };
 
       const status = document.getElementById("status");
@@ -264,7 +276,7 @@
           state.history
             .map(
               (entry) =>
-                `<p>> recorded ${entry.rating.toLowerCase()} for ${entry.expression}</p>`
+                `<p>> recorded ${entry.rating.toLowerCase()} for ${entry.expression}</p>`,
             )
             .join("");
       }
@@ -331,7 +343,9 @@
       reveal.addEventListener("click", revealCard);
       restart.addEventListener("click", restartSession);
       ratings.forEach(({ id, label }) => {
-        document.getElementById(id).addEventListener("click", () => rateCard(label));
+        document
+          .getElementById(id)
+          .addEventListener("click", () => rateCard(label));
       });
 
       document.addEventListener("keydown", (event) => {
