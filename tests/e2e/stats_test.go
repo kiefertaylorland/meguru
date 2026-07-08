@@ -63,7 +63,7 @@ func TestStats_AfterOneReview_ReflectsUpdatedStreakAndRetention(t *testing.T) {
 
 	reviewCmd := exec.Command(bin, "review", "--plain")
 	reviewCmd.Env = env
-	reviewCmd.Stdin = strings.NewReader("good\n")
+	reviewCmd.Stdin = strings.NewReader("a\ngood\n")
 	require.NoError(t, reviewCmd.Run())
 
 	statsCmd := exec.Command(bin, "stats", "--json")
