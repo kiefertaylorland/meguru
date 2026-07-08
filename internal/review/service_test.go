@@ -286,8 +286,8 @@ func TestRate_GoodDoesNotIncrementLapses(t *testing.T) {
 	require.Zero(t, lapses)
 }
 
-func TestStateToString_PanicsOnUnknownState(t *testing.T) {
-	require.Panics(t, func() {
-		stateToString(scheduler.State(99))
-	})
+func TestStateToString_ReturnsErrorOnUnknownState(t *testing.T) {
+	_, err := stateToString(scheduler.State(99))
+
+	require.ErrorContains(t, err, "unknown scheduler.State 99")
 }
