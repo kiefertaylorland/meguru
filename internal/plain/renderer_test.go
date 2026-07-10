@@ -198,6 +198,23 @@ func TestParseRating_Invalid(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestParseWordRating_WordsOnly(t *testing.T) {
+	cases := map[string]scheduler.Rating{
+		"again": scheduler.Again,
+		"hard":  scheduler.Hard,
+		"good":  scheduler.Good,
+		"easy":  scheduler.Easy,
+	}
+	for input, want := range cases {
+		got, ok := parseWordRating(input)
+		require.True(t, ok, "input %q", input)
+		require.Equal(t, want, got, "input %q", input)
+	}
+
+	_, ok := parseWordRating("g")
+	require.False(t, ok)
+}
+
 func TestRatingName_AllVariants(t *testing.T) {
 	require.Equal(t, "Again", ratingName(scheduler.Again))
 	require.Equal(t, "Hard", ratingName(scheduler.Hard))
