@@ -32,6 +32,7 @@ func Run(ctx context.Context, svc review.Service, in io.Reader, out io.Writer) e
 		}
 
 		printField(out, "Expression", card.Expression)
+		cardReading := strings.TrimSpace(card.Reading)
 		fmt.Fprintln(out, "Type the reading (romaji):")
 		fmt.Fprint(out, "> ")
 
@@ -39,7 +40,7 @@ func Run(ctx context.Context, svc review.Service, in io.Reader, out io.Writer) e
 			return scanner.Err()
 		}
 		answerInput := scanner.Text()
-		if rating, ok := parseWordRatingShortcut(answerInput, card.Reading); ok {
+		if rating, ok := parseWordRatingShortcut(answerInput, cardReading); ok {
 			if err := svc.Rate(ctx, card.ID, rating, time.Now()); err != nil {
 				return err
 			}
@@ -119,7 +120,7 @@ func parseWordRatingShortcut(answerInput, cardReading string) (scheduler.Rating,
 	if !ok {
 		return 0, false
 	}
-	if strings.EqualFold(trimmedAnswer, strings.TrimSpace(cardReading)) {
+	if strings.EqualFold(trimmedAnswer, cardReading) {
 		return 0, false
 	}
 	return rating, true

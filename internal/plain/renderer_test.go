@@ -114,7 +114,7 @@ func TestRun_NonMatchingAnswerRevealsAndStillRates(t *testing.T) {
 }
 
 func TestRun_BackCompatRatingOnlyInput_RecordsRating(t *testing.T) {
-	svc := &fakeService{remaining: []*review.Card{{ID: 1, Expression: "か", Reading: "ka", Meaning: "ka"}}}
+	svc := &fakeService{remaining: []*review.Card{{ID: 1, Expression: "か", Reading: "ka", Meaning: "mosquito"}}}
 	var out bytes.Buffer
 
 	err := Run(context.Background(), svc, strings.NewReader("good\n"), &out)
