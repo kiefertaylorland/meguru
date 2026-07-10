@@ -211,8 +211,10 @@ func TestParseWordRating_WordsOnly(t *testing.T) {
 		require.Equal(t, want, got, "input %q", input)
 	}
 
-	_, ok := parseWordRating("g")
-	require.False(t, ok)
+	for _, input := range []string{"a", "h", "g", "e"} {
+		_, ok := parseWordRating(input)
+		require.False(t, ok, "input %q", input)
+	}
 }
 
 func TestRatingName_AllVariants(t *testing.T) {
