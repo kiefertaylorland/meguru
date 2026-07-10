@@ -113,6 +113,17 @@ func TestRun_NonMatchingAnswerRevealsAndStillRates(t *testing.T) {
 	require.Equal(t, []ratedCall{{cardID: 1, rating: scheduler.Good}}, svc.rated)
 }
 
+func TestRun_BackCompatRatingOnlyInput_RecordsRating(t *testing.T) {
+	svc := &fakeService{remaining: []*review.Card{{ID: 1, Expression: "か", Reading: "ka", Meaning: "ka"}}}
+	var out bytes.Buffer
+
+	err := Run(context.Background(), svc, strings.NewReader("good\n"), &out)
+
+	require.NoError(t, err)
+	require.Contains(t, out.String(), "Recorded: Good")
+	require.Equal(t, []ratedCall{{cardID: 1, rating: scheduler.Good}}, svc.rated)
+}
+
 func TestRun_AcceptsSingleLetterRating(t *testing.T) {
 	svc := &fakeService{remaining: []*review.Card{{ID: 1}}}
 	var out bytes.Buffer

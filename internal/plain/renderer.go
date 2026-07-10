@@ -38,7 +38,16 @@ func Run(ctx context.Context, svc review.Service, in io.Reader, out io.Writer) e
 		if !scanner.Scan() {
 			return scanner.Err()
 		}
-		result := review.CheckAnswer(card, scanner.Text())
+		answerInput := scanner.Text()
+		if rating, ok := parseRating(answerInput); ok && !strings.EqualFold(strings.TrimSpace(answerInput), strings.TrimSpace(card.Reading)) {
+			if err := svc.Rate(ctx, card.ID, rating, time.Now()); err != nil {
+				return err
+			}
+			fmt.Fprintf(out, "Recorded: %s\n\n", ratingName(rating))
+			continue
+		}
+
+		result := review.CheckAnswer(card, answerInput)
 		if result.Correct {
 			fmt.Fprintf(out, "Correct! (%s)\n", result.Kana)
 		} else {
