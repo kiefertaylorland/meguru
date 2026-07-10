@@ -217,6 +217,15 @@ func TestParseWordRating_WordsOnly(t *testing.T) {
 	}
 }
 
+func TestParseWordRatingShortcut_RejectsReadingCollision(t *testing.T) {
+	_, ok := parseWordRatingShortcut("good", "good")
+	require.False(t, ok)
+
+	got, ok := parseWordRatingShortcut(" good ", "kana")
+	require.True(t, ok)
+	require.Equal(t, scheduler.Good, got)
+}
+
 func TestRatingName_AllVariants(t *testing.T) {
 	require.Equal(t, "Again", ratingName(scheduler.Again))
 	require.Equal(t, "Hard", ratingName(scheduler.Hard))

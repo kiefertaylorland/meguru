@@ -39,10 +39,7 @@ func Run(ctx context.Context, svc review.Service, in io.Reader, out io.Writer) e
 			return scanner.Err()
 		}
 		answerInput := scanner.Text()
-		trimmedAnswer := strings.TrimSpace(answerInput)
-		rating, isRatingWord := parseWordRating(trimmedAnswer)
-		isNotCardReading := !strings.EqualFold(trimmedAnswer, strings.TrimSpace(card.Reading))
-		if isRatingWord && isNotCardReading {
+		if rating, ok := parseWordRatingShortcut(answerInput, card.Reading); ok {
 			if err := svc.Rate(ctx, card.ID, rating, time.Now()); err != nil {
 				return err
 			}
@@ -114,6 +111,18 @@ func parseWordRating(input string) (scheduler.Rating, bool) {
 		return scheduler.Easy, true
 	}
 	return 0, false
+}
+
+func parseWordRatingShortcut(answerInput, cardReading string) (scheduler.Rating, bool) {
+	trimmedAnswer := strings.TrimSpace(answerInput)
+	rating, ok := parseWordRating(trimmedAnswer)
+	if !ok {
+		return 0, false
+	}
+	if strings.EqualFold(trimmedAnswer, strings.TrimSpace(cardReading)) {
+		return 0, false
+	}
+	return rating, true
 }
 
 func ratingName(r scheduler.Rating) string {
