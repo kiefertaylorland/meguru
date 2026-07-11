@@ -101,17 +101,11 @@ func parseRating(input string) (scheduler.Rating, bool) {
 }
 
 func parseWordRating(input string) (scheduler.Rating, bool) {
-	switch strings.ToLower(input) {
-	case "again":
-		return scheduler.Again, true
-	case "hard":
-		return scheduler.Hard, true
-	case "good":
-		return scheduler.Good, true
-	case "easy":
-		return scheduler.Easy, true
+	trimmed := strings.TrimSpace(input)
+	if len(trimmed) == 1 {
+		return 0, false
 	}
-	return 0, false
+	return parseRating(trimmed)
 }
 
 func parseWordRatingShortcut(answerInput, cardReading string) (scheduler.Rating, bool) {
