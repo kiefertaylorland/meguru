@@ -9,13 +9,14 @@ import (
 )
 
 // Seed loads every builtin deck (BuiltinDecks) into storage on first run, or
-// updates an individual deck's existing notes' fields in place — keyed by
-// their stable "expression" natural key within that deck — when that deck's
-// embedded content_version has increased. Existing cards/srs_state/
-// review_log rows are never touched (FR-002, FR-003, FR-004; research.md
-// §3). This seed/update-in-place logic is shared by every builtin deck:
-// adding a new deck means adding one Definition in embed.go, not new seed
-// code.
+// updates an individual deck in place when that deck's embedded
+// content_version has increased: existing notes are updated by their stable
+// "expression" natural key within that deck, and newly added expressions are
+// inserted as new notes/cards/srs_state rows. Existing cards/srs_state/
+// review_log rows for already-existing expressions are never touched
+// (FR-002, FR-003, FR-004; research.md §3). This seed/update-in-place logic
+// is shared by every builtin deck: adding a new deck means adding one
+// Definition in embed.go, not new seed code.
 func Seed(ctx context.Context, db *sql.DB, now time.Time) error {
 	type parsedDeck struct {
 		def     Definition
@@ -104,10 +105,6 @@ func updateInPlace(ctx context.Context, tx *sql.Tx, deckID int64, content Conten
 		if err != nil {
 			return err
 		}
-		// FR-004 only requires updating existing notes' content in place;
-		// this milestone's single fixed hiragana deck never introduces new
-		// notes via a content-version bump, so an unmatched expression is
-		// not handled here.
 		res, err := tx.ExecContext(ctx,
 			`UPDATE notes SET fields = ?, updated_at = ?
 			 WHERE deck_id = ? AND json_extract(fields, '$.expression') = ?`,
@@ -119,7 +116,14 @@ func updateInPlace(ctx context.Context, tx *sql.Tx, deckID int64, content Conten
 		if err != nil {
 			return fmt.Errorf("update note %s: %w", note.Expression, err)
 		}
-		if affected != 1 {
+		switch affected {
+		case 0:
+			if err := insertNote(ctx, tx, deckID, note, nowStr); err != nil {
+				return err
+			}
+		case 1:
+			continue
+		default:
 			return fmt.Errorf("update note %s: expected to update 1 row, updated %d", note.Expression, affected)
 		}
 	}
