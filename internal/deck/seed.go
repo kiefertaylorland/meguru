@@ -116,14 +116,11 @@ func updateInPlace(ctx context.Context, tx *sql.Tx, deckID int64, content Conten
 		if err != nil {
 			return fmt.Errorf("update note %s: %w", note.Expression, err)
 		}
-		switch affected {
-		case 0:
+		if affected == 0 {
 			if err := insertNote(ctx, tx, deckID, note, nowStr); err != nil {
 				return err
 			}
-		case 1:
-			continue
-		default:
+		} else if affected != 1 {
 			return fmt.Errorf("update note %s: expected to update 1 row, updated %d", note.Expression, affected)
 		}
 	}
