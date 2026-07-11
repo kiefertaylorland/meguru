@@ -168,6 +168,16 @@ func TestRun_EOFDuringRatingReadReturnsNilError(t *testing.T) {
 	require.Empty(t, svc.rated)
 }
 
+func TestRun_EOFDuringRatingRead_UsesRatingShapedAnswerToken(t *testing.T) {
+	svc := &fakeService{remaining: []*review.Card{{ID: 1, Reading: "a"}}}
+	var out bytes.Buffer
+
+	err := Run(context.Background(), svc, strings.NewReader("good\n"), &out)
+
+	require.NoError(t, err)
+	require.Equal(t, []ratedCall{{cardID: 1, rating: scheduler.Good}}, svc.rated)
+}
+
 func TestParseRating_AllVariants(t *testing.T) {
 	cases := map[string]scheduler.Rating{
 		"a": scheduler.Again, "Again": scheduler.Again, " again ": scheduler.Again,
