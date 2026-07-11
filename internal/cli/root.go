@@ -19,5 +19,6 @@ func NewRootCommand() *cobra.Command {
 		SilenceErrors: true,
 	}
 	root.AddCommand(newReviewCommand())
+	root.AddCommand(newStatsCommand())
 	return root
 }
