@@ -122,6 +122,10 @@ func (s *service) Rate(ctx context.Context, cardID int64, rating scheduler.Ratin
 
 	nowStr := now.UTC().Format(time.RFC3339)
 	dueStr := outcome.DueAt.UTC().Format(time.RFC3339)
+	nextStateStr, err := stateToString(outcome.NextState)
+	if err != nil {
+		return fmt.Errorf("map next scheduler state for card %d: %w", cardID, err)
+	}
 
 	var elapsedDays sql.NullFloat64
 	if current.LastReviewAt != nil {
@@ -139,7 +143,7 @@ func (s *service) Rate(ctx context.Context, cardID int64, rating scheduler.Ratin
 		UPDATE srs_state
 		SET state = ?, stability = ?, difficulty = ?, due_at = ?, last_review_at = ?, reps = ?, lapses = ?
 		WHERE card_id = ?`,
-		stateToString(outcome.NextState), outcome.Stability, outcome.Difficulty, dueStr, nowStr,
+		nextStateStr, outcome.Stability, outcome.Difficulty, dueStr, nowStr,
 		outcome.Reps, outcome.Lapses, cardID); err != nil {
 		return fmt.Errorf("update srs_state: %w", err)
 	}
@@ -164,17 +168,17 @@ func stateFromString(s string) (scheduler.State, error) {
 	}
 }
 
-func stateToString(s scheduler.State) string {
+func stateToString(s scheduler.State) (string, error) {
 	switch s {
 	case scheduler.StateNew:
-		return "new"
+		return "new", nil
 	case scheduler.StateLearning:
-		return "learning"
+		return "learning", nil
 	case scheduler.StateReview:
-		return "review"
+		return "review", nil
 	case scheduler.StateRelearning:
-		return "relearning"
+		return "relearning", nil
 	default:
-		panic(fmt.Sprintf("BUG: unknown scheduler.State %d (must be StateNew/StateLearning/StateReview/StateRelearning)", s))
+		return "", fmt.Errorf("unknown scheduler.State %d", s)
 	}
 }

@@ -87,14 +87,20 @@ func TestKatakana_ParsesEmbeddedJSON(t *testing.T) {
 func TestJLPTN5Kanji_ParsesEmbeddedJSON(t *testing.T) {
 	content, err := JLPTN5Kanji()
 	require.NoError(t, err)
-	require.Equal(t, 1, content.ContentVersion)
+	require.Equal(t, 2, content.ContentVersion)
 	require.GreaterOrEqual(t, len(content.Notes), 20)
 	require.LessOrEqual(t, len(content.Notes), 40)
+	var foundBig bool
 	for _, n := range content.Notes {
 		require.NotEmpty(t, n.Expression)
 		require.NotEmpty(t, n.Reading)
 		require.NotEmpty(t, n.Meaning)
+		if n.Expression == "大" {
+			require.Equal(t, "oo", n.Reading)
+			foundBig = true
+		}
 	}
+	require.True(t, foundBig)
 }
 
 func TestJLPTN5Vocab_ParsesEmbeddedJSON(t *testing.T) {
@@ -414,4 +420,37 @@ func TestUpdateInPlace_UpdatesFieldsPreservesSchedulingState(t *testing.T) {
 	require.Equal(t, 5, reps, "content update must not reset scheduling progress")
 	require.Equal(t, "2030-01-01T00:00:00Z", dueAt, "content update must not touch due_at")
 	require.Equal(t, reviewLogCountBefore, reviewLogCountAfter, "content update must not touch review_log")
+}
+
+func TestUpdateInPlace_InsertsNewNotesOnContentVersionBump(t *testing.T) {
+	db := openTestDB(t)
+	now := time.Now()
+	require.NoError(t, seedDeck(context.Background(), db, testDef(), Content{
+		ContentVersion: 1,
+		Notes:          []Note{{Expression: "x", Reading: "old", Meaning: "old"}},
+	}, now))
+
+	require.NoError(t, seedDeck(context.Background(), db, testDef(), Content{
+		ContentVersion: 2,
+		Notes: []Note{
+			{Expression: "x", Reading: "new", Meaning: "new"},
+			{Expression: "y", Reading: "y", Meaning: "y"},
+		},
+	}, now.Add(time.Hour)))
+
+	var noteCount, cardCount, stateCount, storedVersion int
+	var xReading string
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM notes`).Scan(&noteCount))
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM cards`).Scan(&cardCount))
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM srs_state`).Scan(&stateCount))
+	require.NoError(t, db.QueryRow(`SELECT content_version FROM decks WHERE slug = ?`, testDef().Slug).Scan(&storedVersion))
+	require.NoError(t, db.QueryRow(
+		`SELECT json_extract(fields, '$.reading') FROM notes WHERE json_extract(fields, '$.expression') = 'x'`).
+		Scan(&xReading))
+
+	require.Equal(t, 2, noteCount)
+	require.Equal(t, 2, cardCount)
+	require.Equal(t, 2, stateCount)
+	require.Equal(t, 2, storedVersion)
+	require.Equal(t, "new", xReading)
 }

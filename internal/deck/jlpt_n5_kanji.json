@@ -1,5 +1,5 @@
 {
-  "content_version": 1,
+  "content_version": 2,
   "notes": [
     {"expression": "一", "reading": "ichi", "meaning": "one"},
     {"expression": "二", "reading": "ni", "meaning": "two"},
@@ -27,7 +27,7 @@
     {"expression": "何", "reading": "nani", "meaning": "what"},
     {"expression": "本", "reading": "hon", "meaning": "book, origin"},
     {"expression": "中", "reading": "naka", "meaning": "middle, inside"},
-    {"expression": "大", "reading": "ooki", "meaning": "big"},
+    {"expression": "大", "reading": "oo", "meaning": "big"},
     {"expression": "小", "reading": "chii", "meaning": "small"},
     {"expression": "上", "reading": "ue", "meaning": "above, up"},
     {"expression": "下", "reading": "shita", "meaning": "below, down"}

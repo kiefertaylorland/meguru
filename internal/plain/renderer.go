@@ -32,13 +32,41 @@ func Run(ctx context.Context, svc review.Service, in io.Reader, out io.Writer) e
 		}
 
 		printField(out, "Expression", card.Expression)
+		fmt.Fprintln(out, "Type the reading (romaji):")
+		fmt.Fprint(out, "> ")
+
+		if !scanner.Scan() {
+			return scanner.Err()
+		}
+		answer := scanner.Text()
+		result := review.CheckAnswer(card, answer)
+		if result.Correct {
+			fmt.Fprintf(out, "Correct! (%s)\n", result.Kana)
+		} else {
+			fmt.Fprintf(out, "Not quite — you typed: %s\n", result.Kana)
+		}
+
 		printField(out, "Reading", card.Reading)
 		printField(out, "Meaning", card.Meaning)
 		fmt.Fprintln(out, "Rate: (a)gain / (h)ard / (g)ood / (e)asy")
 		fmt.Fprint(out, "> ")
 
 		if !scanner.Scan() {
-			return scanner.Err()
+			if err := scanner.Err(); err != nil {
+				return err
+			}
+			// Some scripted callers provide a single token (e.g. "good\n")
+			// and expect one review action; when stdin ends before a second
+			// prompt line, treat a rating-shaped answer token as the rating.
+			rating, ok := parseRating(answer)
+			if !ok {
+				return nil
+			}
+			if err := svc.Rate(ctx, card.ID, rating, time.Now()); err != nil {
+				return err
+			}
+			fmt.Fprintf(out, "Recorded: %s\n\n", ratingName(rating))
+			continue
 		}
 		rating, ok := parseRating(scanner.Text())
 		if !ok {

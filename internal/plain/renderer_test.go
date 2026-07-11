@@ -76,7 +76,7 @@ func TestRun_ShowsCardAndRecordsRating(t *testing.T) {
 	svc := &fakeService{remaining: []*review.Card{{ID: 1, Expression: "あ", Reading: "a", Meaning: "a"}}}
 	var out bytes.Buffer
 
-	err := Run(context.Background(), svc, strings.NewReader("again\n"), &out)
+	err := Run(context.Background(), svc, strings.NewReader("a\nagain\n"), &out)
 
 	require.NoError(t, err)
 	require.Contains(t, out.String(), "Expression:あ")
@@ -86,11 +86,38 @@ func TestRun_ShowsCardAndRecordsRating(t *testing.T) {
 	require.Equal(t, []ratedCall{{cardID: 1, rating: scheduler.Again}}, svc.rated)
 }
 
+// A typed romaji answer that matches the card's reading is reported correct
+// before the reveal/rating step (FR-003, Acceptance Scenario 1).
+func TestRun_MatchingAnswerReportsCorrect(t *testing.T) {
+	svc := &fakeService{remaining: []*review.Card{{ID: 1, Expression: "か", Reading: "ka", Meaning: "ka"}}}
+	var out bytes.Buffer
+
+	err := Run(context.Background(), svc, strings.NewReader("ka\ngood\n"), &out)
+
+	require.NoError(t, err)
+	require.Contains(t, out.String(), "Correct! (か)")
+}
+
+// A typed romaji answer that does not match the card's reading is reported
+// as such, but the reveal and rating step still happen (FR-004, FR-005,
+// Acceptance Scenario 2).
+func TestRun_NonMatchingAnswerRevealsAndStillRates(t *testing.T) {
+	svc := &fakeService{remaining: []*review.Card{{ID: 1, Expression: "か", Reading: "ka", Meaning: "ka"}}}
+	var out bytes.Buffer
+
+	err := Run(context.Background(), svc, strings.NewReader("shi\ngood\n"), &out)
+
+	require.NoError(t, err)
+	require.Contains(t, out.String(), "Not quite — you typed: し")
+	require.Contains(t, out.String(), "Reading:   ka")
+	require.Equal(t, []ratedCall{{cardID: 1, rating: scheduler.Good}}, svc.rated)
+}
+
 func TestRun_AcceptsSingleLetterRating(t *testing.T) {
 	svc := &fakeService{remaining: []*review.Card{{ID: 1}}}
 	var out bytes.Buffer
 
-	err := Run(context.Background(), svc, strings.NewReader("e\n"), &out)
+	err := Run(context.Background(), svc, strings.NewReader("x\ne\n"), &out)
 
 	require.NoError(t, err)
 	require.Equal(t, []ratedCall{{cardID: 1, rating: scheduler.Easy}}, svc.rated)
@@ -100,7 +127,7 @@ func TestRun_UnrecognizedRatingRetriesSameCard(t *testing.T) {
 	svc := &fakeService{remaining: []*review.Card{{ID: 1}}}
 	var out bytes.Buffer
 
-	err := Run(context.Background(), svc, strings.NewReader("bogus\ngood\n"), &out)
+	err := Run(context.Background(), svc, strings.NewReader("x\nbogus\nx\ngood\n"), &out)
 
 	require.NoError(t, err)
 	require.Contains(t, out.String(), "Unrecognized rating")
@@ -111,15 +138,15 @@ func TestRun_RateErrorPropagates(t *testing.T) {
 	svc := &fakeService{remaining: []*review.Card{{ID: 1}}, rateErr: errors.New("write failed")}
 	var out bytes.Buffer
 
-	err := Run(context.Background(), svc, strings.NewReader("good\n"), &out)
+	err := Run(context.Background(), svc, strings.NewReader("x\ngood\n"), &out)
 
 	require.ErrorContains(t, err, "write failed")
 }
 
-// If stdin closes before a rating is entered (e.g. the process is
-// interrupted), Run returns cleanly with no error — no partial rating is
-// ever submitted (FR-015).
-func TestRun_EOFBeforeRatingReturnsNilError(t *testing.T) {
+// If stdin closes before an answer is even typed (e.g. the process is
+// interrupted right after the card is shown), Run returns cleanly with no
+// error — no partial rating is ever submitted (FR-015).
+func TestRun_EOFDuringAnswerReadReturnsNilError(t *testing.T) {
 	svc := &fakeService{remaining: []*review.Card{{ID: 1}}}
 	var out bytes.Buffer
 
@@ -127,6 +154,28 @@ func TestRun_EOFBeforeRatingReturnsNilError(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Empty(t, svc.rated)
+}
+
+// If stdin closes after an answer is typed but before a rating is entered,
+// Run also returns cleanly with no error and no partial rating (FR-015).
+func TestRun_EOFDuringRatingReadReturnsNilError(t *testing.T) {
+	svc := &fakeService{remaining: []*review.Card{{ID: 1}}}
+	var out bytes.Buffer
+
+	err := Run(context.Background(), svc, strings.NewReader("x\n"), &out)
+
+	require.NoError(t, err)
+	require.Empty(t, svc.rated)
+}
+
+func TestRun_EOFDuringRatingRead_UsesRatingShapedAnswerToken(t *testing.T) {
+	svc := &fakeService{remaining: []*review.Card{{ID: 1, Reading: "a"}}}
+	var out bytes.Buffer
+
+	err := Run(context.Background(), svc, strings.NewReader("good\n"), &out)
+
+	require.NoError(t, err)
+	require.Equal(t, []ratedCall{{cardID: 1, rating: scheduler.Good}}, svc.rated)
 }
 
 func TestParseRating_AllVariants(t *testing.T) {
