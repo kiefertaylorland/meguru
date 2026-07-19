@@ -64,7 +64,7 @@ func TestDataDirIn_PropagatesStatError(t *testing.T) {
 	base := t.TempDir()
 	blocked := filepath.Join(base, "blocked")
 	require.NoError(t, os.MkdirAll(blocked, 0o000))
-	t.Cleanup(func() { os.Chmod(blocked, 0o700) }) // allow TempDir cleanup
+	t.Cleanup(func() { _ = os.Chmod(blocked, 0o700) }) // allow TempDir cleanup
 
 	_, err := dataDirIn(blocked)
 	require.Error(t, err)
@@ -78,7 +78,7 @@ func TestOpenIn_PropagatesDataDirError(t *testing.T) {
 	base := t.TempDir()
 	blocked := filepath.Join(base, "blocked")
 	require.NoError(t, os.MkdirAll(blocked, 0o000))
-	t.Cleanup(func() { os.Chmod(blocked, 0o700) })
+	t.Cleanup(func() { _ = os.Chmod(blocked, 0o700) })
 
 	_, err := openIn(blocked)
 	require.Error(t, err)

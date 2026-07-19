@@ -1,0 +1,35 @@
+# golangci-lint v2 config — the lint CI gate mandated by
+# docs/product/TECH_STACK.md §7. Linter choices favor correctness and
+# security (constitution SEC-*) over style churn: the v2 "standard" set
+# (errcheck, govet, ineffassign, staticcheck, unused) plus gosec and
+# misspell. Style-opinion linters are deliberately absent.
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - gosec
+    - misspell
+  exclusions:
+    presets:
+      - common-false-positives
+      - std-error-handling
+    rules:
+      # Test helpers legitimately do things gosec flags in production code
+      # (exec.Command with variable binary paths in e2e, etc.).
+      - path: _test\.go
+        linters:
+          - gosec
+      # G115 flags every int<->int8/uint64 conversion in the CardState <->
+      # fsrs.Card mapping. The values are provably bounded: rating 1-4 and
+      # state 0-3 (schema CHECK constraints + scheduler enums), reps/lapses
+      # are non-negative small counters. Scoped to the one mapping file so
+      # G115 still guards the rest of the codebase.
+      - path: internal/scheduler/fsrs\.go
+        linters:
+          - gosec
+        text: "G115"
+
+formatters:
+  enable:
+    - gofmt
