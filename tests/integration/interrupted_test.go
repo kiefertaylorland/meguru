@@ -22,7 +22,7 @@ func TestReview_InterruptedBeforeRating_LeavesNoPartialState(t *testing.T) {
 	require.NoError(t, deck.Seed(ctx, db, now))
 	svc := review.NewService(db)
 
-	shown, err := svc.NextDueCard(ctx)
+	shown, err := svc.NextDueCard(ctx, review.DeckScope{})
 	require.NoError(t, err)
 	require.NotNil(t, shown)
 
@@ -37,7 +37,7 @@ func TestReview_InterruptedBeforeRating_LeavesNoPartialState(t *testing.T) {
 	require.Zero(t, reps)
 
 	// On the next run, the same card is still presented as due.
-	stillShown, err := svc.NextDueCard(ctx)
+	stillShown, err := svc.NextDueCard(ctx, review.DeckScope{})
 	require.NoError(t, err)
 	require.NotNil(t, stillShown)
 	require.Equal(t, shown.ID, stillShown.ID)
