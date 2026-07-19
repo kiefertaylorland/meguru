@@ -68,7 +68,7 @@ func openIn(base string) (*sql.DB, error) {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
 	if err := db.Ping(); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("ping database: %w", err)
 	}
 	return db, nil

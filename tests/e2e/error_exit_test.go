@@ -27,7 +27,7 @@ func TestReview_StorageOpenFailure_ExitsOneWithSingleErrorLine(t *testing.T) {
 	base := t.TempDir()
 	blocked := filepath.Join(base, "blocked")
 	require.NoError(t, os.MkdirAll(blocked, 0o000))
-	t.Cleanup(func() { os.Chmod(blocked, 0o700) })
+	t.Cleanup(func() { _ = os.Chmod(blocked, 0o700) })
 
 	cmd := exec.Command(bin, "review", "--plain")
 	cmd.Env = withCoverEnv(append(cmd.Environ(), "XDG_DATA_HOME="+blocked))

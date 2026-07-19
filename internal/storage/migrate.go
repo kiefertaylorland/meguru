@@ -67,11 +67,11 @@ func migrateFrom(db *sql.DB, migrationsFS fs.FS, dir string) error {
 			return err
 		}
 		if _, err := tx.Exec(string(sqlBytes)); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("apply migration %s: %w", m.name, err)
 		}
 		if err := setSchemaVersion(tx, m.version); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return err
 		}
 		if err := tx.Commit(); err != nil {

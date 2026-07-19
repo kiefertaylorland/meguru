@@ -82,7 +82,7 @@ func (s *service) Rate(ctx context.Context, cardID int64, rating scheduler.Ratin
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }() // no-op after Commit
 
 	var stateStr string
 	var stability, difficulty float64

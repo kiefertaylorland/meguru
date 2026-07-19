@@ -35,7 +35,7 @@ func Seed(ctx context.Context, db *sql.DB, now time.Time) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }() // no-op after Commit
 
 	for _, p := range parsed {
 		if err := seedDeckTx(ctx, tx, p.def, p.content, now); err != nil {
@@ -50,7 +50,7 @@ func seedDeck(ctx context.Context, db *sql.DB, d Definition, content Content, no
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }() // no-op after Commit
 
 	if err := seedDeckTx(ctx, tx, d, content, now); err != nil {
 		return err

@@ -34,18 +34,11 @@ func testDef() Definition {
 	return Definition{Slug: "test-deck", Name: "Test Deck", Kind: "kana"}
 }
 
-// withEmbeddedContent temporarily swaps the embedded hiragana.json content
-// for a test, restoring the real one afterward. hiraganaJSON is a plain
-// package var (not const), so this is a safe, package-local way to exercise
-// paths (malformed JSON) that the real, fixed, valid embedded file can
-// never produce.
-func withEmbeddedContent(t *testing.T, content Content) {
-	t.Helper()
-	raw, err := json.Marshal(content)
-	require.NoError(t, err)
-	withRawEmbeddedContent(t, raw)
-}
-
+// withRawEmbeddedContent temporarily swaps the embedded hiragana.json
+// content for a test, restoring the real one afterward. hiraganaJSON is a
+// plain package var (not const), so this is a safe, package-local way to
+// exercise paths (malformed JSON) that the real, fixed, valid embedded file
+// can never produce.
 func withRawEmbeddedContent(t *testing.T, raw []byte) {
 	t.Helper()
 	original := hiraganaJSON

@@ -51,6 +51,6 @@ func TestTruncate_ZeroWidth(t *testing.T) {
 // A zero-width grapheme (e.g. a zero-width space) still counts as one
 // column so it isn't invisible to width-based layout math.
 func TestWidth_ZeroWidthGraphemeCountsAsOneColumn(t *testing.T) {
-	require.Equal(t, 1, Width("​"))
-	require.Equal(t, 2, Width("a​")) // 1 (a) + 1 (zero-width space, floored up)
+	require.Equal(t, 1, Width("\u200b"))
+	require.Equal(t, 2, Width("a\u200b")) // 1 (a) + 1 (zero-width space, floored up)
 }
