@@ -21,9 +21,10 @@ import (
 // xdg.Reload().
 func setXDGDataHome(t *testing.T, dir string) {
 	t.Helper()
+	// Run after t.Setenv restores the prior env var, so xdg's cached DataHome stays in sync.
+	t.Cleanup(xdg.Reload)
 	t.Setenv("XDG_DATA_HOME", dir)
 	xdg.Reload()
-	t.Cleanup(xdg.Reload) // t.Setenv restores the env var; re-sync xdg's cache to match
 }
 
 // runCommand executes the full root command tree in-process with scripted
