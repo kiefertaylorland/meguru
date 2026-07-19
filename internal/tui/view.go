@@ -53,6 +53,8 @@ func (m Model) render() string {
 		body = m.renderStartMenu()
 	case screenStats:
 		body = m.renderStats()
+	case screenDeckPicker:
+		body = m.renderDeckPicker()
 	default:
 		body = m.renderReview()
 	}
@@ -85,6 +87,24 @@ func (m Model) renderStartMenu() string {
 	return cardStyle.Render(body)
 }
 
+func (m Model) renderDeckPicker() string {
+	var b strings.Builder
+	for i, d := range m.deckOptions {
+		line := d.Name
+		if i == m.deckSelected {
+			line = selectedStyle.Render("> " + line)
+		} else {
+			line = "  " + line
+		}
+		b.WriteString(line)
+		if i < len(m.deckOptions)-1 {
+			b.WriteString("\n")
+		}
+	}
+	body := b.String() + "\n\n" + hintStyle.Render("↑/k ↓/j move  enter select  esc back  q quit")
+	return cardStyle.Render(body)
+}
+
 func (m Model) renderStats() string {
 	if m.statsErr != nil {
 		return cardStyle.Render(fmt.Sprintf("error loading stats: %v\n\n%s",
@@ -108,11 +128,19 @@ func (m Model) renderStats() string {
 }
 
 func (m Model) renderReview() string {
+	var scopeLine string
+	if m.activeDeck.Slug != "" {
+		scopeLine = hintStyle.Render("Studying: "+m.activeDeck.Name) + "\n\n"
+	}
+
 	if m.noneDue {
+		if m.activeDeck.Slug != "" {
+			return scopeLine + fmt.Sprintf("Nothing due in %s right now.\n", m.activeDeck.Name)
+		}
 		return "Nothing due right now.\n"
 	}
 	if m.card == nil {
-		return "Loading...\n"
+		return scopeLine + "Loading...\n"
 	}
 
 	var body string
@@ -123,5 +151,5 @@ func (m Model) renderReview() string {
 			m.card.Expression, m.card.Reading, m.card.Meaning,
 			hintStyle.Render("1=Again 2=Hard 3=Good 4=Easy"))
 	}
-	return cardStyle.Render(body) + "\n"
+	return scopeLine + cardStyle.Render(body) + "\n"
 }
