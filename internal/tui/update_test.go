@@ -11,6 +11,7 @@ import (
 
 	"meguru/internal/review"
 	"meguru/internal/scheduler"
+	"meguru/internal/stats"
 )
 
 type fakeService struct {
@@ -36,6 +37,23 @@ func (f *fakeService) Rate(ctx context.Context, cardID int64, rating scheduler.R
 	return f.rateErr
 }
 
+// fakeStatsService mimics stats.Service for the start menu's "View Stats"
+// screen (no fake for stats.Service existed anywhere in the repo before
+// this feature — research.md #5).
+type fakeStatsService struct {
+	summary    stats.Summary
+	computeErr error
+	calls      int
+}
+
+func (f *fakeStatsService) Compute(ctx context.Context, now time.Time) (stats.Summary, error) {
+	f.calls++
+	if f.computeErr != nil {
+		return stats.Summary{}, f.computeErr
+	}
+	return f.summary, nil
+}
+
 func asModel(t *testing.T, m tea.Model) Model {
 	t.Helper()
 	tm, ok := m.(Model)
@@ -53,18 +71,18 @@ func isQuitCmd(t *testing.T, cmd tea.Cmd) bool {
 }
 
 func TestErr_ReturnsStoredError(t *testing.T) {
-	m := New(context.Background(), &fakeService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
 	m.err = errors.New("boom")
 	require.EqualError(t, m.Err(), "boom")
 }
 
 func TestErr_NilWhenNoError(t *testing.T) {
-	m := New(context.Background(), &fakeService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
 	require.NoError(t, m.Err())
 }
 
 func TestUpdate_CardMsg_SetsCardAndResetsRevealAndSubmitting(t *testing.T) {
-	m := New(context.Background(), &fakeService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
 	m.revealed = true
 	m.submitting = true
 
@@ -80,7 +98,7 @@ func TestUpdate_CardMsg_SetsCardAndResetsRevealAndSubmitting(t *testing.T) {
 }
 
 func TestUpdate_CardMsg_NilCardSetsNoneDue(t *testing.T) {
-	m := New(context.Background(), &fakeService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
 
 	updated, _ := m.Update(cardMsg{card: nil})
 
@@ -88,7 +106,7 @@ func TestUpdate_CardMsg_NilCardSetsNoneDue(t *testing.T) {
 }
 
 func TestUpdate_ErrMsg_SetsErrAndQuits(t *testing.T) {
-	m := New(context.Background(), &fakeService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
 
 	updated, cmd := m.Update(errMsg{err: errors.New("db exploded")})
 
@@ -99,7 +117,7 @@ func TestUpdate_ErrMsg_SetsErrAndQuits(t *testing.T) {
 
 func TestUpdate_RatedMsg_Success_ResetsSubmittingAndReloads(t *testing.T) {
 	svc := &fakeService{card: &review.Card{ID: 1}}
-	m := New(context.Background(), svc)
+	m := New(context.Background(), svc, &fakeStatsService{})
 	m.submitting = true
 
 	updated, cmd := m.Update(ratedMsg{err: nil})
@@ -116,7 +134,7 @@ func TestUpdate_RatedMsg_Success_ResetsSubmittingAndReloads(t *testing.T) {
 }
 
 func TestUpdate_RatedMsg_Error_SetsErrAndQuits(t *testing.T) {
-	m := New(context.Background(), &fakeService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
 	m.submitting = true
 
 	updated, cmd := m.Update(ratedMsg{err: errors.New("write failed")})
@@ -132,7 +150,7 @@ func quitKey(key rune) tea.KeyPressMsg {
 }
 
 func TestUpdate_KeyPressDispatchesToHandleKey(t *testing.T) {
-	m := New(context.Background(), &fakeService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
 	m.noneDue = true
 
 	updated, cmd := m.Update(quitKey('q'))
@@ -142,7 +160,7 @@ func TestUpdate_KeyPressDispatchesToHandleKey(t *testing.T) {
 }
 
 func TestHandleKey_ErrSuppressesAllInput(t *testing.T) {
-	m := New(context.Background(), &fakeService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
 	m.err = errors.New("already failed")
 
 	updated, cmd := m.handleKey(quitKey('q'))
@@ -152,7 +170,7 @@ func TestHandleKey_ErrSuppressesAllInput(t *testing.T) {
 }
 
 func TestHandleKey_CtrlCQuits(t *testing.T) {
-	m := New(context.Background(), &fakeService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
 
 	updated, cmd := m.handleKey(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 
@@ -161,7 +179,7 @@ func TestHandleKey_CtrlCQuits(t *testing.T) {
 }
 
 func TestHandleKey_NoneDueAnyKeyQuits(t *testing.T) {
-	m := New(context.Background(), &fakeService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
 	m.noneDue = true
 
 	updated, cmd := m.handleKey(quitKey('x'))
@@ -171,7 +189,7 @@ func TestHandleKey_NoneDueAnyKeyQuits(t *testing.T) {
 }
 
 func TestHandleKey_StillLoadingIgnoresKey(t *testing.T) {
-	m := New(context.Background(), &fakeService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
 	// card == nil, noneDue == false: still loading.
 
 	updated, cmd := m.handleKey(quitKey('3'))
@@ -182,7 +200,7 @@ func TestHandleKey_StillLoadingIgnoresKey(t *testing.T) {
 }
 
 func TestHandleKey_RevealsOnSpace(t *testing.T) {
-	m := New(context.Background(), &fakeService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
 	m.card = &review.Card{ID: 1}
 
 	updated, cmd := m.handleKey(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
@@ -192,7 +210,7 @@ func TestHandleKey_RevealsOnSpace(t *testing.T) {
 }
 
 func TestHandleKey_RevealsOnEnter(t *testing.T) {
-	m := New(context.Background(), &fakeService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
 	m.card = &review.Card{ID: 1}
 
 	updated, _ := m.handleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -201,7 +219,7 @@ func TestHandleKey_RevealsOnEnter(t *testing.T) {
 }
 
 func TestHandleKey_UnrecognizedKeyBeforeRevealDoesNothing(t *testing.T) {
-	m := New(context.Background(), &fakeService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
 	m.card = &review.Card{ID: 1}
 
 	updated, cmd := m.handleKey(quitKey('z'))
@@ -212,7 +230,7 @@ func TestHandleKey_UnrecognizedKeyBeforeRevealDoesNothing(t *testing.T) {
 
 func TestHandleKey_SubmittingGuardBlocksRepeatRating(t *testing.T) {
 	svc := &fakeService{}
-	m := New(context.Background(), svc)
+	m := New(context.Background(), svc, &fakeStatsService{})
 	m.card = &review.Card{ID: 1}
 	m.revealed = true
 	m.submitting = true
@@ -226,7 +244,7 @@ func TestHandleKey_SubmittingGuardBlocksRepeatRating(t *testing.T) {
 
 func TestHandleKey_RatingFiresRateAndSetsSubmitting(t *testing.T) {
 	svc := &fakeService{}
-	m := New(context.Background(), svc)
+	m := New(context.Background(), svc, &fakeStatsService{})
 	m.card = &review.Card{ID: 42}
 	m.revealed = true
 
@@ -246,7 +264,7 @@ func TestHandleKey_RatingFiresRateAndSetsSubmitting(t *testing.T) {
 }
 
 func TestHandleKey_InvalidRatingKeyAfterRevealDoesNothing(t *testing.T) {
-	m := New(context.Background(), &fakeService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
 	m.card = &review.Card{ID: 1}
 	m.revealed = true
 
@@ -275,26 +293,225 @@ func TestRatingFromKey_Invalid(t *testing.T) {
 	require.False(t, ok)
 }
 
-func TestInit_ReturnsLoadNextCardCmd(t *testing.T) {
+func TestInit_ReturnsNil_StartMenuIsFirstScreen(t *testing.T) {
 	svc := &fakeService{card: &review.Card{ID: 7}}
-	m := New(context.Background(), svc)
+	m := New(context.Background(), svc, &fakeStatsService{})
 
-	cmd := m.Init()
-	require.NotNil(t, cmd)
-
-	msg := cmd()
-	cm, ok := msg.(cardMsg)
-	require.True(t, ok)
-	require.Equal(t, svc.card, cm.card)
+	require.Nil(t, m.Init(), "the start menu is the first screen; Init no longer auto-loads a card")
+	require.Equal(t, screenStartMenu, m.screen)
 }
 
 func TestLoadNextCard_PropagatesError(t *testing.T) {
 	svc := &fakeService{nextErr: errors.New("query failed")}
-	m := New(context.Background(), svc)
+	m := New(context.Background(), svc, &fakeStatsService{})
 
 	msg := m.loadNextCard()
 
 	em, ok := msg.(errMsg)
 	require.True(t, ok)
 	require.EqualError(t, em.err, "query failed")
+}
+
+// --- Start menu navigation (US1) ---
+
+func downKey() tea.KeyPressMsg { return tea.KeyPressMsg{Code: tea.KeyDown} }
+func upKey() tea.KeyPressMsg   { return tea.KeyPressMsg{Code: tea.KeyUp} }
+
+func TestHandleStartMenuKey_DownMovesSelectionAndClampsAtLast(t *testing.T) {
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+
+	updated, _ := m.handleStartMenuKey(downKey())
+	m = asModel(t, updated)
+	require.Equal(t, 1, m.menuSelected)
+
+	updated, _ = m.handleStartMenuKey(downKey())
+	m = asModel(t, updated)
+	require.Equal(t, 2, m.menuSelected)
+
+	updated, _ = m.handleStartMenuKey(downKey())
+	m = asModel(t, updated)
+	require.Equal(t, 2, m.menuSelected, "clamps at the last item")
+}
+
+func TestHandleStartMenuKey_JKMoveSelectionSameAsArrows(t *testing.T) {
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+
+	updated, _ := m.handleStartMenuKey(quitKey('j'))
+	require.Equal(t, 1, asModel(t, updated).menuSelected)
+
+	updated, _ = asModel(t, updated).handleStartMenuKey(quitKey('k'))
+	require.Equal(t, 0, asModel(t, updated).menuSelected)
+}
+
+func TestHandleStartMenuKey_UpClampsAtFirst(t *testing.T) {
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+
+	updated, _ := m.handleStartMenuKey(upKey())
+
+	require.Equal(t, 0, asModel(t, updated).menuSelected, "clamps at the first item")
+}
+
+func TestHandleStartMenuKey_EnterOnStartReview_TransitionsToReviewAndLoadsCard(t *testing.T) {
+	svc := &fakeService{card: &review.Card{ID: 7}}
+	m := New(context.Background(), svc, &fakeStatsService{})
+
+	updated, cmd := m.handleStartMenuKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	got := asModel(t, updated)
+	require.Equal(t, screenReview, got.screen)
+	require.NotNil(t, cmd)
+	msg := cmd()
+	cm, ok := msg.(cardMsg)
+	require.True(t, ok)
+	require.Equal(t, svc.card, cm.card)
+}
+
+func TestHandleStartMenuKey_EnterOnViewStats_TransitionsToStatsAndFetches(t *testing.T) {
+	statsSvc := &fakeStatsService{summary: stats.Summary{DueCards: 2}}
+	m := New(context.Background(), &fakeService{}, statsSvc)
+	m.menuSelected = 1
+
+	updated, cmd := m.handleStartMenuKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	got := asModel(t, updated)
+	require.Equal(t, screenStats, got.screen)
+	require.NotNil(t, cmd)
+	msg := cmd()
+	sm, ok := msg.(statsMsg)
+	require.True(t, ok)
+	require.Equal(t, 2, sm.summary.DueCards)
+	require.Equal(t, 1, statsSvc.calls)
+}
+
+func TestHandleStartMenuKey_EnterOnQuit_Quits(t *testing.T) {
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	m.menuSelected = 2
+
+	updated, cmd := m.handleStartMenuKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	require.True(t, asModel(t, updated).quitting)
+	require.True(t, isQuitCmd(t, cmd))
+}
+
+func TestHandleStartMenuKey_QAndCtrlCQuit(t *testing.T) {
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+
+	updated, cmd := m.handleStartMenuKey(quitKey('q'))
+	require.True(t, asModel(t, updated).quitting)
+	require.True(t, isQuitCmd(t, cmd))
+
+	m2 := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	updated2, cmd2 := m2.handleStartMenuKey(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
+	require.True(t, asModel(t, updated2).quitting)
+	require.True(t, isQuitCmd(t, cmd2))
+}
+
+// --- Stats screen (US2) ---
+
+func TestLoadStats_ReturnsStatsMsgOnSuccess(t *testing.T) {
+	statsSvc := &fakeStatsService{summary: stats.Summary{DueCards: 5, StreakDays: 3}}
+	m := New(context.Background(), &fakeService{}, statsSvc)
+
+	msg := m.loadStats()
+
+	sm, ok := msg.(statsMsg)
+	require.True(t, ok)
+	require.Equal(t, 5, sm.summary.DueCards)
+	require.Equal(t, 3, sm.summary.StreakDays)
+}
+
+func TestLoadStats_ReturnsStatsErrMsgOnFailure(t *testing.T) {
+	statsSvc := &fakeStatsService{computeErr: errors.New("query failed")}
+	m := New(context.Background(), &fakeService{}, statsSvc)
+
+	msg := m.loadStats()
+
+	em, ok := msg.(statsErrMsg)
+	require.True(t, ok)
+	require.EqualError(t, em.err, "query failed")
+}
+
+func TestUpdate_StatsMsg_StoresSummaryAndClearsErr(t *testing.T) {
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	m.statsErr = errors.New("stale error")
+
+	updated, cmd := m.Update(statsMsg{summary: stats.Summary{DueCards: 9}})
+
+	got := asModel(t, updated)
+	require.NotNil(t, got.statsSummary)
+	require.Equal(t, 9, got.statsSummary.DueCards)
+	require.NoError(t, got.statsErr)
+	require.Nil(t, cmd)
+}
+
+func TestUpdate_StatsErrMsg_StoresErr(t *testing.T) {
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+
+	updated, cmd := m.Update(statsErrMsg{err: errors.New("db exploded")})
+
+	require.EqualError(t, asModel(t, updated).statsErr, "db exploded")
+	require.Nil(t, cmd)
+}
+
+func TestHandleStatsKey_EscReturnsToStartMenu(t *testing.T) {
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	m.screen = screenStats
+
+	updated, cmd := m.handleStatsKey(tea.KeyPressMsg{Code: tea.KeyEsc})
+
+	require.Equal(t, screenStartMenu, asModel(t, updated).screen)
+	require.Nil(t, cmd)
+}
+
+func TestHandleStatsKey_QAndCtrlCQuit(t *testing.T) {
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	m.screen = screenStats
+
+	updated, cmd := m.handleStatsKey(quitKey('q'))
+
+	require.True(t, asModel(t, updated).quitting)
+	require.True(t, isQuitCmd(t, cmd))
+}
+
+func TestUpdate_RoutesKeyPressByScreen(t *testing.T) {
+	menu := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	updated, _ := menu.Update(downKey())
+	require.Equal(t, 1, asModel(t, updated).menuSelected, "start menu screen routes to handleStartMenuKey")
+
+	statsScreen := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	statsScreen.screen = screenStats
+	updated, _ = statsScreen.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	require.Equal(t, screenStartMenu, asModel(t, updated).screen, "stats screen routes to handleStatsKey")
+
+	reviewScreen := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	reviewScreen.screen = screenReview
+	reviewScreen.card = &review.Card{ID: 1}
+	updated, _ = reviewScreen.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	require.True(t, asModel(t, updated).revealed, "review screen routes to handleKey")
+}
+
+// --- Full-window layout (US3) ---
+
+func TestUpdate_WindowSizeMsg_StoresWidthAndHeight(t *testing.T) {
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+
+	updated, cmd := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	got := asModel(t, updated)
+	require.Equal(t, 120, got.width)
+	require.Equal(t, 40, got.height)
+	require.Nil(t, cmd)
+}
+
+func TestUpdate_WindowSizeMsg_MidReviewPreservesCardAndRevealed(t *testing.T) {
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	m.screen = screenReview
+	m.card = &review.Card{ID: 1, Expression: "あ"}
+	m.revealed = true
+
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 200, Height: 60})
+
+	got := asModel(t, updated)
+	require.Equal(t, m.card, got.card)
+	require.True(t, got.revealed)
 }

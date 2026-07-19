@@ -8,9 +8,10 @@ import (
 	"meguru/internal/scheduler"
 )
 
-// Init kicks off loading the first due card.
+// Init no longer auto-loads a card: the start menu is the first screen, and
+// loading only begins once "Start Review" is selected (handleStartMenuKey).
 func (m Model) Init() tea.Cmd {
-	return m.loadNextCard
+	return nil
 }
 
 func (m Model) loadNextCard() tea.Msg {
@@ -21,11 +22,24 @@ func (m Model) loadNextCard() tea.Msg {
 	return cardMsg{card}
 }
 
-// Update handles one Bubble Tea message: loading due cards, revealing a
-// card's answer, submitting a rating (FR-006), and clearly communicating
-// when nothing is due (FR-005).
+func (m Model) loadStats() tea.Msg {
+	summary, err := m.statsSvc.Compute(m.ctx, time.Now())
+	if err != nil {
+		return statsErrMsg{err}
+	}
+	return statsMsg{summary}
+}
+
+// Update handles one Bubble Tea message: terminal resize, loading due cards,
+// revealing a card's answer, submitting a rating (FR-006), fetching stats,
+// and clearly communicating when nothing is due (FR-005).
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		return m, nil
+
 	case cardMsg:
 		m.card = msg.card
 		m.revealed = false
@@ -48,8 +62,72 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, m.loadNextCard
 
+	case statsMsg:
+		m.statsSummary = &msg.summary
+		m.statsErr = nil
+		return m, nil
+
+	case statsErrMsg:
+		m.statsErr = msg.err
+		return m, nil
+
 	case tea.KeyPressMsg:
-		return m.handleKey(msg)
+		switch m.screen {
+		case screenStartMenu:
+			return m.handleStartMenuKey(msg)
+		case screenStats:
+			return m.handleStatsKey(msg)
+		default:
+			return m.handleKey(msg)
+		}
+	}
+	return m, nil
+}
+
+// handleStartMenuKey handles a keypress on the start menu (contracts/tui-screens.md).
+func (m Model) handleStartMenuKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q":
+		m.quitting = true
+		return m, tea.Quit
+
+	case "up", "k":
+		if m.menuSelected > 0 {
+			m.menuSelected--
+		}
+		return m, nil
+
+	case "down", "j":
+		if m.menuSelected < len(m.menuItems)-1 {
+			m.menuSelected++
+		}
+		return m, nil
+
+	case "enter":
+		switch m.menuItems[m.menuSelected].Action {
+		case actionStartReview:
+			m.screen = screenReview
+			return m, m.loadNextCard
+		case actionViewStats:
+			m.screen = screenStats
+			return m, m.loadStats
+		case actionQuit:
+			m.quitting = true
+			return m, tea.Quit
+		}
+	}
+	return m, nil
+}
+
+// handleStatsKey handles a keypress on the stats screen (contracts/tui-screens.md).
+func (m Model) handleStatsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q":
+		m.quitting = true
+		return m, tea.Quit
+	case "esc":
+		m.screen = screenStartMenu
+		return m, nil
 	}
 	return m, nil
 }

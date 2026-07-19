@@ -15,6 +15,7 @@ import (
 
 	"meguru/internal/deck"
 	"meguru/internal/review"
+	"meguru/internal/stats"
 	"meguru/internal/storage"
 )
 
@@ -36,13 +37,24 @@ func newTestModel(t *testing.T) Model {
 		t.Fatalf("seed test db: %v", err)
 	}
 
-	return New(context.Background(), review.NewService(db))
+	return New(context.Background(), review.NewService(db), stats.NewService(db))
 }
 
-// Golden-frame coverage for the interactive review screen: card render,
-// reveal, and a rating keypress (plan.md Testing strategy).
+// Golden-frame coverage for the interactive session: start menu, navigating
+// into the review screen, card render, reveal, and a rating keypress
+// (plan.md Testing strategy). 100x30 is at or above the 80x24 minimum
+// supported terminal size (view.go minWidth/minHeight) — unlike the
+// pre-full-window-layout version of this test, which used a compact 60x12
+// purely to keep test output small; that size would now trigger the
+// "terminal too small" message instead of exercising the real screens.
 func TestReviewScreen_RendersCardRevealAndAcceptsRating(t *testing.T) {
-	tm := teatest.NewTestModel(t, newTestModel(t), teatest.WithInitialTermSize(60, 12))
+	tm := teatest.NewTestModel(t, newTestModel(t), teatest.WithInitialTermSize(100, 30))
+
+	teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
+		return bytes.Contains(b, []byte("Start Review"))
+	})
+
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 	teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
 		return bytes.Contains(b, []byte("press space/enter to reveal"))
