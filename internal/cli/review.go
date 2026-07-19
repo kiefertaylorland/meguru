@@ -12,6 +12,7 @@ import (
 	"meguru/internal/deck"
 	"meguru/internal/plain"
 	"meguru/internal/review"
+	"meguru/internal/stats"
 	"meguru/internal/storage"
 	"meguru/internal/tui"
 )
@@ -54,7 +55,8 @@ func runReview(cmd *cobra.Command, plainFlag bool) error {
 		return plain.Run(cmd.Context(), svc, cmd.InOrStdin(), cmd.OutOrStdout())
 	}
 
-	finalModel, err := tea.NewProgram(tui.New(cmd.Context(), svc), programOptions()...).Run()
+	statsSvc := stats.NewService(db)
+	finalModel, err := tea.NewProgram(tui.New(cmd.Context(), svc, statsSvc), programOptions()...).Run()
 	if err != nil {
 		return err
 	}
