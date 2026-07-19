@@ -15,6 +15,7 @@ const (
 	screenStartMenu screen = iota
 	screenStats
 	screenReview
+	screenDeckPicker
 )
 
 // action identifies what happens when a start-menu item is activated.
@@ -22,6 +23,7 @@ type action int
 
 const (
 	actionStartReview action = iota
+	actionStudyDeck
 	actionViewStats
 	actionQuit
 )
@@ -46,6 +48,10 @@ type Model struct {
 	width  int
 	height int
 
+	deckOptions  []review.DeckScope
+	deckSelected int
+	activeDeck   review.DeckScope
+
 	card       *review.Card
 	revealed   bool
 	submitting bool
@@ -60,15 +66,20 @@ type Model struct {
 
 // New builds the initial model for a review session against svc and
 // statsSvc. The session opens on the start menu (data-model.md Screen
-// transitions) — no card is loaded until "Start Review" is selected.
-func New(ctx context.Context, svc review.Service, statsSvc stats.Service) Model {
+// transitions) — no card is loaded until "Start Review" or "Study a Deck"
+// is selected. decks is the deck-picker's fixed list; initialScope seeds
+// activeDeck (e.g. from a --deck flag) — its zero value means unfiltered.
+func New(ctx context.Context, svc review.Service, statsSvc stats.Service, decks []review.DeckScope, initialScope review.DeckScope) Model {
 	return Model{
-		ctx:      ctx,
-		svc:      svc,
-		statsSvc: statsSvc,
-		screen:   screenStartMenu,
+		ctx:         ctx,
+		svc:         svc,
+		statsSvc:    statsSvc,
+		screen:      screenStartMenu,
+		deckOptions: decks,
+		activeDeck:  initialScope,
 		menuItems: []MenuItem{
 			{Label: "Start Review", Action: actionStartReview},
+			{Label: "Study a Deck", Action: actionStudyDeck},
 			{Label: "View Stats", Action: actionViewStats},
 			{Label: "Quit", Action: actionQuit},
 		},

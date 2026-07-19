@@ -21,11 +21,20 @@ type Card struct {
 	Meaning    string
 }
 
+// DeckScope narrows a review session to one deck. The zero value (empty
+// Slug) means unfiltered — every deck, exactly as if no scope were given
+// (data-model.md).
+type DeckScope struct {
+	Slug string
+	Name string
+}
+
 // Service is what both the TUI and plain renderer call — neither UI layer
 // talks to storage or the scheduler directly (contracts/cli.md).
 type Service interface {
-	// NextDueCard returns the next due card, or (nil, nil) if nothing is due.
-	NextDueCard(ctx context.Context) (*Card, error)
+	// NextDueCard returns the next due card within scope (or across every
+	// deck, if scope is the zero value), or (nil, nil) if nothing is due.
+	NextDueCard(ctx context.Context, scope DeckScope) (*Card, error)
 	// Rate records a rating for cardID and reschedules it, atomically
 	// (FR-007, FR-008, FR-015).
 	Rate(ctx context.Context, cardID int64, rating scheduler.Rating, now time.Time) error
@@ -40,15 +49,17 @@ func NewService(db *sql.DB) Service {
 	return &service{db: db}
 }
 
-func (s *service) NextDueCard(ctx context.Context) (*Card, error) {
+func (s *service) NextDueCard(ctx context.Context, scope DeckScope) (*Card, error) {
 	row := s.db.QueryRowContext(ctx, `
 		SELECT c.id, n.fields
 		FROM cards c
 		JOIN notes n ON n.id = c.note_id
+		JOIN decks d ON d.id = n.deck_id
 		JOIN srs_state st ON st.card_id = c.id
 		WHERE st.due_at IS NOT NULL AND st.due_at <= ?
+		  AND (? = '' OR d.slug = ?)
 		ORDER BY st.due_at ASC
-		LIMIT 1`, time.Now().UTC().Format(time.RFC3339))
+		LIMIT 1`, time.Now().UTC().Format(time.RFC3339), scope.Slug, scope.Slug)
 
 	var cardID int64
 	var fieldsJSON string

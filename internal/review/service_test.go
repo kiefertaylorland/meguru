@@ -43,14 +43,80 @@ func seedOneCard(t *testing.T, db *sql.DB) int64 {
 	return cardID
 }
 
+// seedOneCardInDeck seeds one due card in a deck identified by slug,
+// creating the deck row if it doesn't already exist in db.
+func seedOneCardInDeck(t *testing.T, db *sql.DB, slug, expression string) int64 {
+	t.Helper()
+	var deckID int64
+	err := db.QueryRow(`SELECT id FROM decks WHERE slug = ?`, slug).Scan(&deckID)
+	if err == sql.ErrNoRows {
+		res, err := db.Exec(`INSERT INTO decks (slug, name, kind, source, content_version) VALUES (?, ?, 'kana', 'builtin', 1)`, slug, slug)
+		require.NoError(t, err)
+		deckID, err = res.LastInsertId()
+		require.NoError(t, err)
+	} else {
+		require.NoError(t, err)
+	}
+
+	res, err := db.Exec(`INSERT INTO notes (deck_id, fields, created_at, updated_at) VALUES (?, ?, '2026-01-01T00:00:00Z','2026-01-01T00:00:00Z')`,
+		deckID, fmt.Sprintf(`{"expression":%q,"reading":"r","meaning":"m"}`, expression))
+	require.NoError(t, err)
+	noteID, err := res.LastInsertId()
+	require.NoError(t, err)
+	res, err = db.Exec(`INSERT INTO cards (note_id, direction) VALUES (?, 'recognition')`, noteID)
+	require.NoError(t, err)
+	cardID, err := res.LastInsertId()
+	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO srs_state (card_id, state, due_at) VALUES (?, 'new', '2020-01-01T00:00:00Z')`, cardID)
+	require.NoError(t, err)
+	return cardID
+}
+
 func TestNextDueCard_ReturnsNilWhenNothingDue(t *testing.T) {
 	db := openTestDB(t)
 	svc := NewService(db)
 
-	card, err := svc.NextDueCard(context.Background())
+	card, err := svc.NextDueCard(context.Background(), DeckScope{})
 
 	require.NoError(t, err)
 	require.Nil(t, card)
+}
+
+func TestNextDueCard_ScopedToMatchingDeck_ReturnsOnlyThatDecksCard(t *testing.T) {
+	db := openTestDB(t)
+	seedOneCardInDeck(t, db, "kana-hiragana", "あ")
+	seedOneCardInDeck(t, db, "jlpt-n5-kanji", "一")
+	svc := NewService(db)
+
+	card, err := svc.NextDueCard(context.Background(), DeckScope{Slug: "jlpt-n5-kanji"})
+
+	require.NoError(t, err)
+	require.NotNil(t, card)
+	require.Equal(t, "一", card.Expression)
+}
+
+func TestNextDueCard_ScopedToDeckWithNothingDue_ReturnsNilEvenIfOtherDeckHasDue(t *testing.T) {
+	db := openTestDB(t)
+	seedOneCardInDeck(t, db, "kana-hiragana", "あ")
+	// No cards seeded in "jlpt-n5-vocab" at all.
+	svc := NewService(db)
+
+	card, err := svc.NextDueCard(context.Background(), DeckScope{Slug: "jlpt-n5-vocab"})
+
+	require.NoError(t, err)
+	require.Nil(t, card, "a scope naming a deck with nothing due must not fall back to another deck's card")
+}
+
+func TestNextDueCard_EmptyScope_PoolsEveryDeck(t *testing.T) {
+	db := openTestDB(t)
+	seedOneCardInDeck(t, db, "kana-hiragana", "あ")
+	svc := NewService(db)
+
+	card, err := svc.NextDueCard(context.Background(), DeckScope{})
+
+	require.NoError(t, err)
+	require.NotNil(t, card)
+	require.Equal(t, "あ", card.Expression)
 }
 
 func TestNextDueCard_ReturnsErrorOnClosedDB(t *testing.T) {
@@ -58,7 +124,7 @@ func TestNextDueCard_ReturnsErrorOnClosedDB(t *testing.T) {
 	require.NoError(t, db.Close())
 	svc := NewService(db)
 
-	_, err := svc.NextDueCard(context.Background())
+	_, err := svc.NextDueCard(context.Background(), DeckScope{})
 
 	require.Error(t, err)
 }
@@ -77,7 +143,7 @@ func TestNextDueCard_ReturnsErrorOnMalformedFieldsJSON(t *testing.T) {
 	require.NoError(t, err)
 
 	svc := NewService(db)
-	_, err = svc.NextDueCard(context.Background())
+	_, err = svc.NextDueCard(context.Background(), DeckScope{})
 
 	require.ErrorContains(t, err, "parse card fields")
 }

@@ -17,17 +17,23 @@ import (
 
 // Run drives one full review session using sequential fmt.Println output and
 // a blocking line-based rating prompt — no interactive redraws, no
-// color/style escape sequences.
-func Run(ctx context.Context, svc review.Service, in io.Reader, out io.Writer) error {
+// color/style escape sequences. scope narrows the session to one deck; its
+// zero value reviews every deck together, unchanged from before this scope
+// existed (FR-002).
+func Run(ctx context.Context, svc review.Service, in io.Reader, out io.Writer, scope review.DeckScope) error {
 	scanner := bufio.NewScanner(in)
 
 	for {
-		card, err := svc.NextDueCard(ctx)
+		card, err := svc.NextDueCard(ctx, scope)
 		if err != nil {
 			return err
 		}
 		if card == nil {
-			fmt.Fprintln(out, "Nothing due right now.")
+			if scope.Name != "" {
+				fmt.Fprintf(out, "Nothing due in %s right now.\n", scope.Name)
+			} else {
+				fmt.Fprintln(out, "Nothing due right now.")
+			}
 			return nil
 		}
 

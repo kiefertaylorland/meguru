@@ -28,9 +28,11 @@ type fakeService struct {
 	nextErr   error
 	rateErr   error
 	rated     []ratedCall
+	lastScope review.DeckScope
 }
 
-func (f *fakeService) NextDueCard(ctx context.Context) (*review.Card, error) {
+func (f *fakeService) NextDueCard(ctx context.Context, scope review.DeckScope) (*review.Card, error) {
+	f.lastScope = scope
 	if f.nextErr != nil {
 		return nil, f.nextErr
 	}
@@ -57,17 +59,39 @@ func TestRun_NothingDuePrintsMessageAndReturnsNil(t *testing.T) {
 	svc := &fakeService{}
 	var out bytes.Buffer
 
-	err := Run(context.Background(), svc, strings.NewReader(""), &out)
+	err := Run(context.Background(), svc, strings.NewReader(""), &out, review.DeckScope{})
 
 	require.NoError(t, err)
 	require.Contains(t, out.String(), "Nothing due right now.")
+}
+
+func TestRun_ScopedSession_PassesScopeToNextDueCard(t *testing.T) {
+	svc := &fakeService{remaining: []*review.Card{{ID: 1, Expression: "あ", Reading: "a", Meaning: "a"}}}
+	var out bytes.Buffer
+
+	err := Run(context.Background(), svc, strings.NewReader("a\ngood\n"), &out,
+		review.DeckScope{Slug: "kana-hiragana", Name: "Hiragana"})
+
+	require.NoError(t, err)
+	require.Equal(t, review.DeckScope{Slug: "kana-hiragana", Name: "Hiragana"}, svc.lastScope)
+}
+
+func TestRun_ScopedSession_NothingDueNamesTheDeck(t *testing.T) {
+	svc := &fakeService{}
+	var out bytes.Buffer
+
+	err := Run(context.Background(), svc, strings.NewReader(""), &out,
+		review.DeckScope{Slug: "jlpt-n5-kanji", Name: "JLPT N5 Kanji"})
+
+	require.NoError(t, err)
+	require.Contains(t, out.String(), "Nothing due in JLPT N5 Kanji right now.")
 }
 
 func TestRun_NextDueCardErrorPropagates(t *testing.T) {
 	svc := &fakeService{nextErr: errors.New("db is on fire")}
 	var out bytes.Buffer
 
-	err := Run(context.Background(), svc, strings.NewReader(""), &out)
+	err := Run(context.Background(), svc, strings.NewReader(""), &out, review.DeckScope{})
 
 	require.ErrorContains(t, err, "db is on fire")
 }
@@ -76,7 +100,7 @@ func TestRun_ShowsCardAndRecordsRating(t *testing.T) {
 	svc := &fakeService{remaining: []*review.Card{{ID: 1, Expression: "あ", Reading: "a", Meaning: "a"}}}
 	var out bytes.Buffer
 
-	err := Run(context.Background(), svc, strings.NewReader("a\nagain\n"), &out)
+	err := Run(context.Background(), svc, strings.NewReader("a\nagain\n"), &out, review.DeckScope{})
 
 	require.NoError(t, err)
 	require.Contains(t, out.String(), "Expression:あ")
@@ -92,7 +116,7 @@ func TestRun_MatchingAnswerReportsCorrect(t *testing.T) {
 	svc := &fakeService{remaining: []*review.Card{{ID: 1, Expression: "か", Reading: "ka", Meaning: "ka"}}}
 	var out bytes.Buffer
 
-	err := Run(context.Background(), svc, strings.NewReader("ka\ngood\n"), &out)
+	err := Run(context.Background(), svc, strings.NewReader("ka\ngood\n"), &out, review.DeckScope{})
 
 	require.NoError(t, err)
 	require.Contains(t, out.String(), "Correct! (か)")
@@ -105,7 +129,7 @@ func TestRun_NonMatchingAnswerRevealsAndStillRates(t *testing.T) {
 	svc := &fakeService{remaining: []*review.Card{{ID: 1, Expression: "か", Reading: "ka", Meaning: "ka"}}}
 	var out bytes.Buffer
 
-	err := Run(context.Background(), svc, strings.NewReader("shi\ngood\n"), &out)
+	err := Run(context.Background(), svc, strings.NewReader("shi\ngood\n"), &out, review.DeckScope{})
 
 	require.NoError(t, err)
 	require.Contains(t, out.String(), "Not quite — you typed: し")
@@ -117,7 +141,7 @@ func TestRun_AcceptsSingleLetterRating(t *testing.T) {
 	svc := &fakeService{remaining: []*review.Card{{ID: 1}}}
 	var out bytes.Buffer
 
-	err := Run(context.Background(), svc, strings.NewReader("x\ne\n"), &out)
+	err := Run(context.Background(), svc, strings.NewReader("x\ne\n"), &out, review.DeckScope{})
 
 	require.NoError(t, err)
 	require.Equal(t, []ratedCall{{cardID: 1, rating: scheduler.Easy}}, svc.rated)
@@ -127,7 +151,7 @@ func TestRun_UnrecognizedRatingRetriesSameCard(t *testing.T) {
 	svc := &fakeService{remaining: []*review.Card{{ID: 1}}}
 	var out bytes.Buffer
 
-	err := Run(context.Background(), svc, strings.NewReader("x\nbogus\nx\ngood\n"), &out)
+	err := Run(context.Background(), svc, strings.NewReader("x\nbogus\nx\ngood\n"), &out, review.DeckScope{})
 
 	require.NoError(t, err)
 	require.Contains(t, out.String(), "Unrecognized rating")
@@ -138,7 +162,7 @@ func TestRun_RateErrorPropagates(t *testing.T) {
 	svc := &fakeService{remaining: []*review.Card{{ID: 1}}, rateErr: errors.New("write failed")}
 	var out bytes.Buffer
 
-	err := Run(context.Background(), svc, strings.NewReader("x\ngood\n"), &out)
+	err := Run(context.Background(), svc, strings.NewReader("x\ngood\n"), &out, review.DeckScope{})
 
 	require.ErrorContains(t, err, "write failed")
 }
@@ -150,7 +174,7 @@ func TestRun_EOFDuringAnswerReadReturnsNilError(t *testing.T) {
 	svc := &fakeService{remaining: []*review.Card{{ID: 1}}}
 	var out bytes.Buffer
 
-	err := Run(context.Background(), svc, strings.NewReader(""), &out)
+	err := Run(context.Background(), svc, strings.NewReader(""), &out, review.DeckScope{})
 
 	require.NoError(t, err)
 	require.Empty(t, svc.rated)
@@ -162,7 +186,7 @@ func TestRun_EOFDuringRatingReadReturnsNilError(t *testing.T) {
 	svc := &fakeService{remaining: []*review.Card{{ID: 1}}}
 	var out bytes.Buffer
 
-	err := Run(context.Background(), svc, strings.NewReader("x\n"), &out)
+	err := Run(context.Background(), svc, strings.NewReader("x\n"), &out, review.DeckScope{})
 
 	require.NoError(t, err)
 	require.Empty(t, svc.rated)
@@ -172,7 +196,7 @@ func TestRun_EOFDuringRatingRead_UsesRatingShapedAnswerToken(t *testing.T) {
 	svc := &fakeService{remaining: []*review.Card{{ID: 1, Reading: "a"}}}
 	var out bytes.Buffer
 
-	err := Run(context.Background(), svc, strings.NewReader("good\n"), &out)
+	err := Run(context.Background(), svc, strings.NewReader("good\n"), &out, review.DeckScope{})
 
 	require.NoError(t, err)
 	require.Equal(t, []ratedCall{{cardID: 1, rating: scheduler.Good}}, svc.rated)

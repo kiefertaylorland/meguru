@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -19,22 +21,29 @@ import (
 
 func newReviewCommand() *cobra.Command {
 	var plainFlag bool
+	var deckFlag string
 
 	cmd := &cobra.Command{
 		Use:   "review",
 		Short: "Run one review session against due cards",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runReview(cmd, plainFlag)
+			return runReview(cmd, plainFlag, deckFlag)
 		},
 	}
 	cmd.Flags().BoolVar(&plainFlag, "plain", false, "Force the linear, non-interactive renderer")
+	cmd.Flags().StringVar(&deckFlag, "deck", "", "Scope the session to one deck by slug (default: every deck)")
 	return cmd
 }
 
 // runReview performs the startup sequence from contracts/cli.md — open (with
 // self-healing permissions), migrate, seed — then dispatches to the
 // interactive TUI or the plain renderer.
-func runReview(cmd *cobra.Command, plainFlag bool) error {
+func runReview(cmd *cobra.Command, plainFlag bool, deckFlag string) error {
+	scope, err := resolveDeckFlag(deckFlag)
+	if err != nil {
+		return err
+	}
+
 	db, err := storage.Open()
 	if err != nil {
 		return err
@@ -52,11 +61,14 @@ func runReview(cmd *cobra.Command, plainFlag bool) error {
 
 	// --plain, or a non-TTY stdout, forces the linear renderer (FR-010).
 	if shouldUsePlain(plainFlag, isatty.IsTerminal(os.Stdout.Fd())) {
-		return plain.Run(cmd.Context(), svc, cmd.InOrStdin(), cmd.OutOrStdout())
+		return plain.Run(cmd.Context(), svc, cmd.InOrStdin(), cmd.OutOrStdout(), scope)
 	}
 
 	statsSvc := stats.NewService(db)
-	finalModel, err := tea.NewProgram(tui.New(cmd.Context(), svc, statsSvc), programOptions()...).Run()
+	finalModel, err := tea.NewProgram(
+		tui.New(cmd.Context(), svc, statsSvc, deckScopes(deck.BuiltinDecks()), scope),
+		programOptions()...,
+	).Run()
 	if err != nil {
 		return err
 	}
@@ -68,6 +80,38 @@ func runReview(cmd *cobra.Command, plainFlag bool) error {
 		return m.Err()
 	}
 	return nil
+}
+
+// resolveDeckFlag resolves --deck's raw value against the built-in deck
+// registry (contracts/007-deck-filter/review-cli.md). An empty slug is the
+// unfiltered case (FR-002); an unrecognized non-empty slug is a clear,
+// side-effect-free error before any database work happens (FR-004).
+func resolveDeckFlag(slug string) (review.DeckScope, error) {
+	if slug == "" {
+		return review.DeckScope{}, nil
+	}
+	for _, d := range deck.BuiltinDecks() {
+		if d.Slug == slug {
+			return review.DeckScope{Slug: d.Slug, Name: d.Name}, nil
+		}
+	}
+
+	var choices []string
+	for _, d := range deck.BuiltinDecks() {
+		choices = append(choices, fmt.Sprintf("%s (%s)", d.Slug, d.Name))
+	}
+	return review.DeckScope{}, fmt.Errorf("unknown deck %q — valid decks: %s", slug, strings.Join(choices, ", "))
+}
+
+// deckScopes builds the interactive TUI's deck-picker list from the built-in
+// deck registry (research.md #2: internal/tui itself never imports
+// internal/deck).
+func deckScopes(defs []deck.Definition) []review.DeckScope {
+	scopes := make([]review.DeckScope, len(defs))
+	for i, d := range defs {
+		scopes[i] = review.DeckScope{Slug: d.Slug, Name: d.Name}
+	}
+	return scopes
 }
 
 // shouldUsePlain is the FR-010 dispatch decision, isolated from cobra/OS

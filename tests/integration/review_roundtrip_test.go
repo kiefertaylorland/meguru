@@ -24,7 +24,7 @@ func TestReview_RateAgainAndEasy_ReschedulesAndLogs(t *testing.T) {
 	require.NoError(t, deck.Seed(ctx, db, now))
 	svc := review.NewService(db)
 
-	again, err := svc.NextDueCard(ctx)
+	again, err := svc.NextDueCard(ctx, review.DeckScope{})
 	require.NoError(t, err)
 	require.NotNil(t, again)
 	require.NoError(t, svc.Rate(ctx, again.ID, scheduler.Again, now))
@@ -53,7 +53,7 @@ func TestReview_RateAgainAndEasy_ReschedulesAndLogs(t *testing.T) {
 	require.Equal(t, 1, logCount)
 
 	// The Easy card must not be due again the same day.
-	stillDue, err := svc.NextDueCard(ctx)
+	stillDue, err := svc.NextDueCard(ctx, review.DeckScope{})
 	require.NoError(t, err)
 	if stillDue != nil {
 		require.NotEqual(t, easyID, stillDue.ID)
