@@ -83,7 +83,7 @@ func runReview(cmd *cobra.Command, plainFlag bool, deckFlag string) error {
 }
 
 // resolveDeckFlag resolves --deck's raw value against the built-in deck
-// registry (contracts/007-deck-filter/review-cli.md). An empty slug is the
+// registry (specs/007-deck-filter/contracts/review-cli.md). An empty slug is the
 // unfiltered case (FR-002); an unrecognized non-empty slug is a clear,
 // side-effect-free error before any database work happens (FR-004).
 func resolveDeckFlag(slug string) (review.DeckScope, error) {
