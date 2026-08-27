@@ -39,7 +39,7 @@ func TestReview_DeckScope_NeverCrossesIntoAnotherDeck(t *testing.T) {
 		require.Equal(t, deck.JLPTN5KanjiSlug, deckSlug)
 
 		require.NoError(t, svc.Rate(ctx, card.ID, scheduler.Good, now))
-		now = now.Add(48 * time.Hour) // guarantee the next card is due
+		now = now.Add(48 * time.Hour) // push the rated card's due_at into the future so it won't reappear here
 	}
 }
 
