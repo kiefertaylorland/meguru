@@ -29,7 +29,7 @@ func Run(ctx context.Context, svc review.Service, in io.Reader, out io.Writer, s
 			return err
 		}
 		if card == nil {
-			if scope.Name != "" {
+			if scope.Slug != "" {
 				fmt.Fprintf(out, "Nothing due in %s right now.\n", scope.Name)
 			} else {
 				fmt.Fprintln(out, "Nothing due right now.")
