@@ -21,7 +21,7 @@ func TestFirstRun_DueCardImmediatelyAfterSeed(t *testing.T) {
 	require.NoError(t, deck.Seed(ctx, db, now))
 
 	svc := review.NewService(db)
-	card, err := svc.NextDueCard(ctx)
+	card, err := svc.NextDueCard(ctx, review.DeckScope{})
 	require.NoError(t, err)
 	require.NotNil(t, card, "expected a due card immediately after seeding")
 	require.NotEmpty(t, card.Expression)

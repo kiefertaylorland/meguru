@@ -12,7 +12,7 @@ import (
 )
 
 func TestView_ErrorState(t *testing.T) {
-	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{}, nil, review.DeckScope{})
 	m.err = errors.New("kaboom")
 
 	view := m.View()
@@ -21,7 +21,7 @@ func TestView_ErrorState(t *testing.T) {
 }
 
 func TestView_Quitting(t *testing.T) {
-	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{}, nil, review.DeckScope{})
 	m.quitting = true
 
 	view := m.View()
@@ -30,7 +30,7 @@ func TestView_Quitting(t *testing.T) {
 }
 
 func TestView_NoneDue(t *testing.T) {
-	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{}, nil, review.DeckScope{})
 	m.screen = screenReview
 	m.noneDue = true
 
@@ -40,7 +40,7 @@ func TestView_NoneDue(t *testing.T) {
 }
 
 func TestView_Loading(t *testing.T) {
-	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{}, nil, review.DeckScope{})
 	m.screen = screenReview
 
 	view := m.View()
@@ -49,7 +49,7 @@ func TestView_Loading(t *testing.T) {
 }
 
 func TestView_CardFrontOnly(t *testing.T) {
-	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{}, nil, review.DeckScope{})
 	m.screen = screenReview
 	m.card = &review.Card{Expression: "あ", Reading: "a", Meaning: "a"}
 
@@ -61,7 +61,7 @@ func TestView_CardFrontOnly(t *testing.T) {
 }
 
 func TestView_CardRevealed(t *testing.T) {
-	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{}, nil, review.DeckScope{})
 	m.screen = screenReview
 	m.card = &review.Card{Expression: "あ", Reading: "a", Meaning: "a"}
 	m.revealed = true
@@ -73,28 +73,87 @@ func TestView_CardRevealed(t *testing.T) {
 }
 
 func TestView_StartMenu_ListsAllActionsAndMarksSelection(t *testing.T) {
-	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{}, nil, review.DeckScope{})
 
 	view := m.View()
 
 	require.Contains(t, view.Content, "Start Review")
+	require.Contains(t, view.Content, "Study a Deck")
 	require.Contains(t, view.Content, "View Stats")
 	require.Contains(t, view.Content, "Quit")
 	require.Contains(t, view.Content, "> Start Review", "first item is selected by default")
 }
 
+func TestView_DeckPicker_ListsAllDecksAndMarksSelection(t *testing.T) {
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{},
+		[]review.DeckScope{{Slug: "kana-hiragana", Name: "Hiragana"}, {Slug: "kana-katakana", Name: "Katakana"}},
+		review.DeckScope{})
+	m.screen = screenDeckPicker
+
+	view := m.View()
+
+	require.Contains(t, view.Content, "Hiragana")
+	require.Contains(t, view.Content, "Katakana")
+	require.Contains(t, view.Content, "> Hiragana", "first deck is selected by default")
+}
+
+func TestView_DeckPicker_MovingSelectionMarksNewDeck(t *testing.T) {
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{},
+		[]review.DeckScope{{Slug: "kana-hiragana", Name: "Hiragana"}, {Slug: "kana-katakana", Name: "Katakana"}},
+		review.DeckScope{})
+	m.screen = screenDeckPicker
+	m.deckSelected = 1
+
+	view := m.View()
+
+	require.Contains(t, view.Content, "> Katakana")
+	require.NotContains(t, view.Content, "> Hiragana")
+}
+
+func TestView_Review_ScopedShowsStudyingLine(t *testing.T) {
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{}, nil,
+		review.DeckScope{Slug: "kana-hiragana", Name: "Hiragana"})
+	m.screen = screenReview
+	m.card = &review.Card{Expression: "あ", Reading: "a", Meaning: "a"}
+
+	view := m.View()
+
+	require.Contains(t, view.Content, "Studying: Hiragana")
+}
+
+func TestView_Review_UnscopedHasNoStudyingLine(t *testing.T) {
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{}, nil, review.DeckScope{})
+	m.screen = screenReview
+	m.card = &review.Card{Expression: "あ", Reading: "a", Meaning: "a"}
+
+	view := m.View()
+
+	require.NotContains(t, view.Content, "Studying:")
+}
+
+func TestView_Review_ScopedNoneDueNamesTheDeck(t *testing.T) {
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{}, nil,
+		review.DeckScope{Slug: "jlpt-n5-kanji", Name: "JLPT N5 Kanji"})
+	m.screen = screenReview
+	m.noneDue = true
+
+	view := m.View()
+
+	require.Contains(t, view.Content, "Nothing due in JLPT N5 Kanji right now.")
+}
+
 func TestView_StartMenu_MovingSelectionMarksNewItem(t *testing.T) {
-	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{}, nil, review.DeckScope{})
 	m.menuSelected = 1
 
 	view := m.View()
 
-	require.Contains(t, view.Content, "> View Stats")
+	require.Contains(t, view.Content, "> Study a Deck")
 	require.NotContains(t, view.Content, "> Start Review")
 }
 
 func TestView_Stats_ShowsSummaryFigures(t *testing.T) {
-	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{}, nil, review.DeckScope{})
 	m.screen = screenStats
 	retention := 87.0
 	m.statsSummary = &stats.Summary{
@@ -111,7 +170,7 @@ func TestView_Stats_ShowsSummaryFigures(t *testing.T) {
 }
 
 func TestView_Stats_NoHistoryShowsUnavailableRetention(t *testing.T) {
-	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{}, nil, review.DeckScope{})
 	m.screen = screenStats
 	m.statsSummary = &stats.Summary{RetentionPercent: nil}
 
@@ -121,7 +180,7 @@ func TestView_Stats_NoHistoryShowsUnavailableRetention(t *testing.T) {
 }
 
 func TestView_Stats_ErrorShowsMessageNotSummary(t *testing.T) {
-	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{}, nil, review.DeckScope{})
 	m.screen = screenStats
 	m.statsErr = errors.New("db exploded")
 
@@ -131,7 +190,7 @@ func TestView_Stats_ErrorShowsMessageNotSummary(t *testing.T) {
 }
 
 func TestView_BelowMinimumSize_ShowsTooSmallMessage(t *testing.T) {
-	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{}, nil, review.DeckScope{})
 	m.width, m.height = 40, 10
 
 	view := m.View()
@@ -141,7 +200,7 @@ func TestView_BelowMinimumSize_ShowsTooSmallMessage(t *testing.T) {
 }
 
 func TestView_AtOrAboveMinimumSize_RendersScreenContent(t *testing.T) {
-	m := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	m := New(context.Background(), &fakeService{}, &fakeStatsService{}, nil, review.DeckScope{})
 	m.width, m.height = minWidth, minHeight
 
 	view := m.View()
@@ -150,10 +209,10 @@ func TestView_AtOrAboveMinimumSize_RendersScreenContent(t *testing.T) {
 }
 
 func TestView_ReflowsBetweenDifferentKnownSizes(t *testing.T) {
-	small := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	small := New(context.Background(), &fakeService{}, &fakeStatsService{}, nil, review.DeckScope{})
 	small.width, small.height = 80, 24
 
-	large := New(context.Background(), &fakeService{}, &fakeStatsService{})
+	large := New(context.Background(), &fakeService{}, &fakeStatsService{}, nil, review.DeckScope{})
 	large.width, large.height = 200, 60
 
 	require.NotEqual(t, small.View().Content, large.View().Content)

@@ -37,7 +37,12 @@ func newTestModel(t *testing.T) Model {
 		t.Fatalf("seed test db: %v", err)
 	}
 
-	return New(context.Background(), review.NewService(db), stats.NewService(db))
+	var decks []review.DeckScope
+	for _, d := range deck.BuiltinDecks() {
+		decks = append(decks, review.DeckScope{Slug: d.Slug, Name: d.Name})
+	}
+
+	return New(context.Background(), review.NewService(db), stats.NewService(db), decks, review.DeckScope{})
 }
 
 // Golden-frame coverage for the interactive session: start menu, navigating
@@ -67,6 +72,33 @@ func TestReviewScreen_RendersCardRevealAndAcceptsRating(t *testing.T) {
 	})
 
 	tm.Send(tea.KeyPressMsg{Code: '3', Text: "3"})
+	tm.Send(tea.KeyPressMsg{Code: 'q', Text: "q"})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(2*time.Second))
+}
+
+// Golden-frame coverage for the "Study a Deck" flow (007-deck-filter):
+// start menu -> Study a Deck -> pick a deck -> the review screen shows that
+// deck's scope indicator.
+func TestStudyADeck_ScopesReviewToChosenDeck(t *testing.T) {
+	tm := teatest.NewTestModel(t, newTestModel(t), teatest.WithInitialTermSize(100, 30))
+
+	teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
+		return bytes.Contains(b, []byte("Study a Deck"))
+	})
+
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyDown}) // Start Review -> Study a Deck
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
+		return bytes.Contains(b, []byte("Hiragana")) && bytes.Contains(b, []byte("Katakana"))
+	})
+
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter}) // pick the first deck (Hiragana)
+
+	teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
+		return bytes.Contains(b, []byte("Studying: Hiragana"))
+	})
+
 	tm.Send(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(2*time.Second))
 }

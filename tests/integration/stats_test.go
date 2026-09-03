@@ -45,19 +45,19 @@ func TestStats_AfterReviewsAcrossSeveralDays_StreakAndRetentionMatch(t *testing.
 	reviewSvc := review.NewService(db)
 
 	// Day -2: one Good review.
-	card, err := reviewSvc.NextDueCard(ctx)
+	card, err := reviewSvc.NextDueCard(ctx, review.DeckScope{})
 	require.NoError(t, err)
 	require.NotNil(t, card)
 	require.NoError(t, reviewSvc.Rate(ctx, card.ID, scheduler.Good, now.AddDate(0, 0, -2)))
 
 	// Day -1: one Again review on a different card.
-	card, err = reviewSvc.NextDueCard(ctx)
+	card, err = reviewSvc.NextDueCard(ctx, review.DeckScope{})
 	require.NoError(t, err)
 	require.NotNil(t, card)
 	require.NoError(t, reviewSvc.Rate(ctx, card.ID, scheduler.Again, now.AddDate(0, 0, -1)))
 
 	// Today: one Easy review.
-	card, err = reviewSvc.NextDueCard(ctx)
+	card, err = reviewSvc.NextDueCard(ctx, review.DeckScope{})
 	require.NoError(t, err)
 	require.NotNil(t, card)
 	require.NoError(t, reviewSvc.Rate(ctx, card.ID, scheduler.Easy, now))

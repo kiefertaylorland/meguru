@@ -15,7 +15,7 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) loadNextCard() tea.Msg {
-	card, err := m.svc.NextDueCard(m.ctx)
+	card, err := m.svc.NextDueCard(m.ctx, m.activeDeck)
 	if err != nil {
 		return errMsg{err}
 	}
@@ -77,6 +77,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleStartMenuKey(msg)
 		case screenStats:
 			return m.handleStatsKey(msg)
+		case screenDeckPicker:
+			return m.handleDeckPickerKey(msg)
 		default:
 			return m.handleKey(msg)
 		}
@@ -108,6 +110,10 @@ func (m Model) handleStartMenuKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case actionStartReview:
 			m.screen = screenReview
 			return m, m.loadNextCard
+		case actionStudyDeck:
+			m.screen = screenDeckPicker
+			m.deckSelected = 0
+			return m, nil
 		case actionViewStats:
 			m.screen = screenStats
 			return m, m.loadStats
@@ -115,6 +121,41 @@ func (m Model) handleStartMenuKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 		}
+	}
+	return m, nil
+}
+
+// handleDeckPickerKey handles a keypress on the deck-picker screen
+// (contracts/tui-deck-picker.md).
+func (m Model) handleDeckPickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q":
+		m.quitting = true
+		return m, tea.Quit
+
+	case "up", "k":
+		if m.deckSelected > 0 {
+			m.deckSelected--
+		}
+		return m, nil
+
+	case "down", "j":
+		if m.deckSelected < len(m.deckOptions)-1 {
+			m.deckSelected++
+		}
+		return m, nil
+
+	case "enter":
+		if len(m.deckOptions) == 0 {
+			return m, nil
+		}
+		m.activeDeck = m.deckOptions[m.deckSelected]
+		m.screen = screenReview
+		return m, m.loadNextCard
+
+	case "esc":
+		m.screen = screenStartMenu
+		return m, nil
 	}
 	return m, nil
 }
