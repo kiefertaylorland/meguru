@@ -1,5 +1,3 @@
-// Command meguru is the CLI entrypoint: it builds the Cobra root command and
-// wires dependencies.
 package main
 
 import (
