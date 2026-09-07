@@ -5,6 +5,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"meguru/internal/deck"
+	"meguru/internal/review"
 )
 
 func TestShouldUsePlain(t *testing.T) {
@@ -48,4 +51,41 @@ func TestNewReviewCommand_RegistersPlainFlag(t *testing.T) {
 	flag := cmd.Flags().Lookup("plain")
 	require.NotNil(t, flag)
 	require.Equal(t, "false", flag.DefValue)
+}
+
+func TestResolveDeckFlag(t *testing.T) {
+	t.Run("empty scope", func(t *testing.T) {
+		scope, err := resolveDeckFlag("")
+
+		require.NoError(t, err)
+		require.Equal(t, review.DeckScope{}, scope)
+	})
+
+	t.Run("known deck", func(t *testing.T) {
+		scope, err := resolveDeckFlag("kana-hiragana")
+
+		require.NoError(t, err)
+		require.Equal(t, review.DeckScope{
+			Slug: "kana-hiragana",
+			Name: "Hiragana",
+		}, scope)
+	})
+
+	t.Run("unknown deck", func(t *testing.T) {
+		_, err := resolveDeckFlag("missing")
+
+		require.EqualError(t, err, `unknown deck "missing" — valid decks: kana-hiragana (Hiragana), kana-katakana (Katakana), jlpt-n5-kanji (JLPT N5 Kanji), jlpt-n5-vocab (JLPT N5 Vocabulary)`)
+	})
+}
+
+func TestDeckScopes(t *testing.T) {
+	defs := []deck.Definition{
+		{Slug: "first", Name: "First"},
+		{Slug: "second", Name: "Second"},
+	}
+
+	require.Equal(t, []review.DeckScope{
+		{Slug: "first", Name: "First"},
+		{Slug: "second", Name: "Second"},
+	}, deckScopes(defs))
 }
